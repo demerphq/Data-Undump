@@ -1,4 +1,4 @@
-package Data::Dumper::Undump;
+package Data::Undump;
 
 use 5.008008;
 use strict;
@@ -15,18 +15,18 @@ our @EXPORT = qw(undump);
 our $VERSION = '0.01';
 
 require XSLoader;
-XSLoader::load('Data::Dumper::Undump', $VERSION);
+XSLoader::load('Data::Undump', $VERSION);
 
 1;
 __END__
 
 =head1 NAME
 
-Data::Dumper::Undump - Perl extension for securely and quickly deserializing simple Data::Dumper dumps
+Data::Undump - Perl extension for securely and quickly deserializing simple Data::Dumper dumps
 
 =head1 SYNOPSIS
 
-  use Data::Dumper::Undump qw(undump);
+  use Data::Undump qw(undump);
   
   my $dump= Data::Dumper->new([$simple_thing])->Terse(1)->Dump();
   undump($dump);

@@ -829,7 +829,7 @@ SV* undump(pTHX_ SV* parse_sv) {
     }
 }
 
-MODULE = Data::Dumper::Undump           PACKAGE = Data::Dumper::Undump
+MODULE = Data::Undump           PACKAGE = Data::Undump
 
 PROTOTYPES: DISABLE
 
