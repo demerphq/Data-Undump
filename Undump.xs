@@ -377,7 +377,8 @@ SV* _undump(pTHX_ const char **parse_start, const char const *parse_end, char ob
                     }
                 } else {
                     parse_ptr--;
-                    PANICf2(depth,token,token_start,parse_ptr,parse_end,"Unexpected character '%c' codepoint 0x%02x encountered in input string while parsing bareword",ch,ch);
+                    PANICf2(depth,token,token_start,parse_ptr,parse_end,
+                        "Unexpected character '%c' codepoint 0x%02x while parsing bareword",ch,ch);
                 }
                 /* for some reason all the interesting keywords are 5 characters long */
                 if ( 5 == (parse_ptr - token_start) ) {
