@@ -1,0 +1,8 @@
+Changes
+Makefile.PL
+MANIFEST
+ppport.h
+README
+Undump.xs
+t/Data-Dumper-Undump.t
+lib/Data/Dumper/Undump.pm

@@ -1,0 +1,6 @@
+Revision history for Perl extension Data::Dumper::Undump.
+
+0.01  Wed May 16 00:05:34 2012
+	- original version; created by h2xs 1.23 with options
+		-A -n Data::Dumper::Undump
+
