@@ -176,7 +176,7 @@ const char bareword_rest[]= {
 
 #define SHOW_TOKEN(depth, token, token_start, pointer) \
     if (MYDEBUG>1) warn("%*s%-2d %*s %.*s\n", DEPTH((depth), (token)), "", \
-         token, -20,  token_name[((token)<TOKEN_UNKNOWN) ? (token) : TOKEN_UNKNOWN ], (pointer) - (token_start), (token_start))
+         token, -20,  token_name[((token)<TOKEN_UNKNOWN) ? (token) : TOKEN_UNKNOWN ],(int)((pointer) - (token_start)), (token_start))
 
 
 #define COND_ISWHITE(ch) ( (ch) == ' ' || (ch) == '\n' || (ch) == '\t' || (ch) == '\r' )
@@ -497,8 +497,8 @@ SV* _undump(pTHX_ const char **parse_start, const char const *parse_end, char ob
                 } else if (!stop_char) {
                     ERRORf1(depth,token,token_start,parse_ptr,parse_end,"Unexpected close bracket '%c'",ch);
                 } else {
-                    ERRORf1(depth,token,token_start,parse_ptr,parse_end,"Unexpected close '%c' while parsing %s",
-                            (stop_char == '}') ? "HASH" : "ARRAY");
+                    ERRORf2(depth,token,token_start,parse_ptr,parse_end,"Unexpected close '%c' while parsing %s",
+                            ch, (stop_char == '}') ? "HASH" : "ARRAY");
                 } 
                 break;
             }
