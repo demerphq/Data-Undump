@@ -325,12 +325,13 @@ SV* _undump(pTHX_ const char **parse_start, const char const *parse_end, char ob
             case '-':
                 ch= *parse_ptr;
                 if ( '0' == ch ) {
-                    if (*parse_ptr++ != '.') {
+                    parse_ptr++;
+                    if (*parse_ptr != '.') {
                         ERROR(depth,token,token_start,parse_ptr,parse_end,"Negative number start with a zero that is not fractional is illegal");
                     }
+                    goto DO_DECIMAL;
                 } else if ( '1' <= ch && ch <= '9' ) {
                     parse_ptr++;
-                    
                 } else {
                     ERROR(depth,token,token_start,parse_ptr,parse_end,"bare '-' only allowed to signify negative number");                        
                 }
@@ -355,6 +356,7 @@ SV* _undump(pTHX_ const char **parse_start, const char const *parse_end, char ob
                     ch= *(++parse_ptr);
                 }
                 if ( ch == '.' ) {
+                  DO_DECIMAL:
                     ch= *(++parse_ptr);
                     if ( '0' <= ch && ch <= '9' ) {
                         ch= *(++parse_ptr);
@@ -576,7 +578,7 @@ SV* _undump(pTHX_ const char **parse_start, const char const *parse_end, char ob
                                 if (esc_read >= new_str_end) {
                                     PANIC(depth,token,token_start,parse_ptr,parse_end,"ran off end of string");
                                 }
-                                ch= *esc_read;
+                                ch= *esc_read++;
                                 switch (ch) {
                                     case '0':
                                     case '1':
@@ -586,7 +588,7 @@ SV* _undump(pTHX_ const char **parse_start, const char const *parse_end, char ob
                                     case '5':
                                     case '6':
                                         /* first octal digit */
-                                        grok_start= esc_read++; /* it was advanced earlier */
+                                        grok_start= esc_read-1; /* it was advanced earlier */
                                         ch= *esc_read;
                                         if ('0' <= ch && ch <= '6') { 
                                             /* second octal digit */
@@ -601,20 +603,26 @@ SV* _undump(pTHX_ const char **parse_start, const char const *parse_end, char ob
                                         cp= grok_oct((char *)grok_start, &grok_len, &grok_flags, 0);
                                         break;
                                     case 'x':
-                                        esc_read++;
                                         if (*esc_read != '{') {
                                             ERROR(depth,token,token_start,parse_ptr,parse_end,"truncated \\x{} sequence?");
                                         } else {
                                             esc_read++;
                                         }
                                         grok_start= esc_read;
-                                        while (*esc_read != '}') esc_read++;
-                                        grok_len= esc_read - grok_start - 1;
+                                        while (*esc_read && *esc_read != '}') esc_read++;
+                                        if (*esc_read != '}') {
+                                            ERROR(depth,token,token_start,parse_ptr,parse_end,"unterminated \\x{} in double quoted string");
+                                        } else {
+                                            grok_len= esc_read - grok_start;
+                                            esc_read++; /* skip '}' */
+                                        }
+                                        // warn("hex: %.*s\n", grok_len, grok_start);
                                         if (grok_len) {
                                             cp= grok_hex((char *)grok_start, &grok_len, &grok_flags, 0);
                                         } else {
                                             ERROR(depth,token,token_start,parse_ptr,parse_end,"empty \\x{} escape?");
                                         }
+                                        // warn("cp: %d\n len: %d flags: %d", cp, grok_len, grok_flags);
                                         if ( cp < 0x100 ) { /* otherwise it would be in octal */
                                             must_uni= 1;
                                         }
@@ -631,8 +639,8 @@ SV* _undump(pTHX_ const char **parse_start, const char const *parse_end, char ob
                                     case 'r': cp= '\r';   break; /* "\r" => "\\r", */
                                     case 't': cp= '\t';   break; /* "\t" => "\\t", */
                                     default:  cp= ch;     break; /* literal */
-                                }
-                            }
+                                } /* switch on escape type */
+                            } /* is an escape */
                             if (is_uni) {
                                 sv_catpvf(got, "%c", cp);
                             } else if (cp < 256) {
