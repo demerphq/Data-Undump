@@ -33,3 +33,19 @@ __DATA__
 "foo | unterminated double quoted string
 
 'foo | unterminated single quoted string
+
+001234 | Zero may not be followed by another digit at the start of a number
+
+-foo | bare '-' only allowed to signify negative number
+
+1. | Unexpected end of floating point number after decimal point
+
+12-34 | Unhandled tail garbage
+
+{ {} => undef } | unexpected open bracket '{' when expecting a key
+
+{ undef => {} } | got an undef when we wanted a key
+
+[ a => 'b' ] | got a bareword where it was not expected
+
+{ a,,,b } | unexpected comma when expecting a value
