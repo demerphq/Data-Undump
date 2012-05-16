@@ -108,7 +108,6 @@ const char bareword_rest[]= {
 #define DEPTH(depth,token) ( ( (depth) * 4 ) + ( ( (token) == TOKEN_OPEN || (token) == TOKEN_BLESS ) - ( ( token ) == TOKEN_CLOSE ) ) * 2 )
 
 #define MYDEBUG 0
-#define MYWARN if (MYDEBUG) warn
 
 #define SHOW_POSITION( depth, token, token_start, pointer, parse_end, show_len ) STMT_START {\
     int remaining= (parse_end) - (pointer); \
@@ -139,38 +138,56 @@ const char bareword_rest[]= {
 } STMT_END
 
 #define PANIC(depth,token,token_start,pointer,parse_end,X) STMT_START { \
-    warn("%*s%s\n",DEPTH((depth),(token)) , "", (X)); \
-    SHOW_POSITION((depth),(token), (token_start), (pointer), (parse_end), 32); \
+    if (MYDEBUG) { \
+        warn("%*s%s\n",DEPTH((depth),(token)) , "", (X)); \
+        SHOW_POSITION((depth),(token), (token_start), (pointer), (parse_end), 32); \
+    } \
+    sv_setpvf( ERRSV, "%s\n", (X) ); \
     BAIL((pointer));\
 } STMT_END
 
 #define PANICf1(depth,token,token_start,pointer,parse_end,F,X) STMT_START { \
-    warn("%*s" F "\n",DEPTH((depth),(token)),"", (X)); \
-    SHOW_POSITION((depth), (token),(token_start),  (pointer), (parse_end), 32); \
+    if (MYDEBUG) { \
+        warn("%*s" F "\n",DEPTH((depth),(token)),"", (X)); \
+        SHOW_POSITION((depth), (token),(token_start),  (pointer), (parse_end), 32); \
+    }\
+    sv_setpvf( ERRSV, F "\n", (X) ); \
     BAIL((pointer));\
 } STMT_END
 
 #define PANICf2(depth,token,token_start,pointer,parse_end,F,X,Y) STMT_START { \
-    warn("%*s" F "\n",DEPTH((depth),(token)),"", (X),(Y)); \
-    SHOW_POSITION((depth), (token), (token_start), (pointer), (parse_end), 32); \
+    if (MYDEBUG) { \
+        warn("%*s" F "\n",DEPTH((depth),(token)),"", (X),(Y)); \
+        SHOW_POSITION((depth), (token), (token_start), (pointer), (parse_end), 32); \
+    } \
+    sv_setpvf( ERRSV, F "\n", (X), (Y)); \
     BAIL((pointer));\
 } STMT_END
 
 #define ERROR(depth,token,token_start,pointer,parse_end,X) STMT_START { \
-    MYWARN("%*s%s\n",DEPTH((depth),(token)) , "", (X)); \
-    if (MYDEBUG) SHOW_POSITION((depth),(token), (token_start), (pointer), (parse_end), 32); \
+    if (MYDEBUG>1) { \
+        warn("%*s%s\n",DEPTH((depth),(token)) , "", (X)); \
+        SHOW_POSITION((depth),(token), (token_start), (pointer), (parse_end), 32); \
+    } \
+    sv_setpvf( ERRSV, "%s\n", (X) ); \
     BAIL((pointer));\
 } STMT_END
 
 #define ERRORf1(depth,token,token_start,pointer,parse_end,F,X) STMT_START { \
-    MYWARN("%*s" F "\n",DEPTH((depth),(token)),"", (X)); \
-    if (MYDEBUG) SHOW_POSITION((depth), (token), (token_start), (pointer), (parse_end), 32); \
+    if (MYDEBUG>1) { \
+        warn("%*s" F "\n",DEPTH((depth),(token)),"", (X)); \
+        SHOW_POSITION((depth), (token), (token_start), (pointer), (parse_end), 32); \
+    } \
+    sv_setpvf( ERRSV, F "\n", (X) ); \
     BAIL((pointer));\
 } STMT_END
 
 #define ERRORf2(depth,token,token_start,pointer,parse_end,F,X,Y) STMT_START { \
-    MYWARN("%*s" F "\n",DEPTH((depth),(token)),"", (X),(Y)); \
-    if (MYDEBUG) SHOW_POSITION((depth), (token), (token_start), (pointer), (parse_end), 32); \
+    if (MYDEBUG>1) { \
+        warn("%*s" F "\n",DEPTH((depth),(token)),"", (X),(Y)); \
+        SHOW_POSITION((depth), (token), (token_start), (pointer), (parse_end), 32); \
+    } \
+    sv_setpvf( ERRSV, F "\n", (X), (Y)); \
     BAIL((pointer));\
 } STMT_END
 
@@ -816,10 +833,10 @@ SV* undump(pTHX_ SV* parse_sv) {
     const char const *parse_end= parse_ptr + parse_len;
     SV *thing= 0;
     if ( !SvOK(parse_sv) ) {
-        MYWARN("Bad argument");        
+        sv_setpv(ERRSV,"Bad argument\n");
         return newSV(0);
     } else if (SvLEN(parse_sv) <= parse_len || parse_ptr[parse_len] != 0 ) {
-        MYWARN("Malformed string in undump (missing tail null)");        
+        sv_setpv(ERRSV,"Malformed input string in undump (missing tail null)\n");
         return newSV(0);
     }
     EAT_WHITE(parse_ptr);
@@ -829,10 +846,13 @@ SV* undump(pTHX_ SV* parse_sv) {
     }
     if (thing) {
         if (parse_ptr < parse_end) {
-            MYWARN("Unhandled tail garbage");
-            SHOW_POSITION(0, 0, parse_ptr, parse_ptr, parse_end, 32); 
+            sv_setpv(ERRSV,"Unhandled tail garbage\n");
+            SvREFCNT_dec(thing);
+            return newSV(0);
+        } else {
+            sv_setsv(ERRSV,&PL_sv_undef);
+            return thing;
         }
-        return thing;
     } else {
         return newSV(0);
     }
