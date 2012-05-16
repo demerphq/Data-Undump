@@ -39,6 +39,35 @@ Securely and quickly deserialize simple Data::Dumper dumps.
 
 By default exports the undump subroutine.
 
+=head1 FUNCTIONS
+
+=head2 undump
+
+Undumps a Data::Dumper style data structure.
+Takes a plain string (magic not currently respected)
+containing a Data::Dumper Terse/Deepcopy style C<Dumper> output
+(ie. no C<$VAR1 => at the front allowed currently) and returns
+either undef for a failed parse, or a scalar value of the
+value parsed.
+
+Restricted to objects nested up to 100 items deep.
+
+=head1 POTENTIAL ENHANCEMENTS
+
+Support for the following isn't implemented but might be in
+future enhancements.
+
+ * String magic on input scalar
+ * qr//
+ * ref to object. Eg \['foo']
+ * Make it possible to parse a list instead of a scalar.
+ * Blessed objects?
+ * Cyclic structures?
+ * Less/more tolerant parsing rules?
+ * Filters? (Block things by their position in the structure?)
+ * Conversion? (IE, we have '[1,1,1]' in the input, and we know we wont
+ *    need it so parse it as '1,1,1' instead.
+
 =head1 SEE ALSO
 
 L<Data::Dumper> L<eval>
