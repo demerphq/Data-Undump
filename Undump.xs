@@ -694,7 +694,7 @@ SV* _undump(pTHX_ const char **parse_start, const char const *parse_end, char ob
                 if (want_key) {
                     DONE_KEY_SIMPLE_break;
                 } else {
-                    ERROR(depth,token,token_start,parse_ptr,parse_end,"got a bareword where it was not expect (DD does not do that)");
+                    ERROR(depth,token,token_start,parse_ptr,parse_end,"got a bareword where it was not expected");
                 }
                 if (got) {
                     ERROR(depth,token,token_start,parse_ptr,parse_end,"Multiple objects in stream?");
@@ -803,6 +803,9 @@ SV* _undump(pTHX_ const char **parse_start, const char const *parse_end, char ob
     } /* while */
     if ( parse_ptr < parse_end ) {
         PANIC(depth,token,token_start,parse_ptr,parse_end,"fallen off the loop with text left");
+    } else if (!got) {
+        ERRORf1(depth,token,token_start,parse_ptr,parse_end,
+            "unterminated %s constructor", obj_char == '{' ? "HASH" : obj_char == '[' ? "ARRAY" : "UNKNOWN");
     } else {
         *parse_start= parse_ptr;
         return got;
