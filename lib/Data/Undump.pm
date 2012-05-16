@@ -35,6 +35,9 @@ Data::Undump - Perl extension for securely and quickly deserializing simple Data
 
 Securely and quickly deserialize simple Data::Dumper dumps.
 
+B<Note that this is an early release. Please contact the author(s) if you intend to
+use this software in production.>
+
 =head2 EXPORT
 
 By default exports the undump subroutine.
@@ -70,7 +73,7 @@ future enhancements.
 
 =head1 SEE ALSO
 
-L<Data::Dumper> L<eval>
+L<Data::Dumper>, L<eval>
 
 =head1 AUTHOR
 
