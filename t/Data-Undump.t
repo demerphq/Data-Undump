@@ -1,6 +1,7 @@
 use strict;
 use warnings;
 use Test::More;
+use Test::LongString;
 use Data::Undump qw(undump);
 use Data::Dumper;
 our @dump;
@@ -19,7 +20,7 @@ sub check {
     my $undumped= dd(undump($dump));
     my $evaled= dd(eval($dump));
 
-    return is($undumped,$evaled,"undump: >>$_<<");
+    return is_string($undumped,$evaled,"undump: >>$dump<<");
 }
 
 check($_) for @dump;
