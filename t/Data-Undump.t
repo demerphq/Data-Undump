@@ -12,15 +12,18 @@ our @dump;
         push @dump, $_;
     }
 }
-plan tests => 1 + @dump;
+plan tests => 1 + 2 * @dump;
 pass();
 sub dd { return Data::Dumper->new([$_[0]])->Purity(1)->Useqq(1)->Sortkeys(1)->Dump() }
 sub check {
     my $dump= shift;
-    my $undumped= dd(undump($dump));
+    my $undumped= dd(my $struct= undump($dump));
     my $evaled= dd(eval($dump));
 
-    return is_string($undumped,$evaled,"undump: >>$dump<<");
+    $dump eq "undef"
+        ? pass("undumping undef")
+        : isnt($struct, undef, "undump succeeded: >>$dump<<");
+    return is_string($undumped,$evaled,"undump and eval agree");
 }
 
 check($_) for @dump;
@@ -57,7 +60,7 @@ undef
 
 {}
 
-{ foo => bar }
+{ foo => 'bar' }
 
 [ 1 ]
 
