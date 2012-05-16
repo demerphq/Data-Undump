@@ -5,3 +5,7 @@ Undump.o
 Undump.c
 Undump.bs
 Makefile
+META.*
+MYMETA.*
+.*.swp
+.*.swo
