@@ -28,7 +28,7 @@ __DATA__
 
 { foo => [ | unterminated ARRAY constructor
 
-{ foo foo => | got a bareword where it was not expected
+{ foo foo => | expected fat comma after bareword
 
 "foo | unterminated double quoted string
 
@@ -46,6 +46,13 @@ __DATA__
 
 { undef => {} } | got an undef when we wanted a key
 
-[ a => 'b' ] | got a bareword where it was not expected
+{ a,,,b } | expected fat comma after bareword
 
-{ a,,,b } | unexpected comma when expecting a value
+{ a,1 } | expected fat comma after bareword
+
+{ a => => b } | unexpected fat comma when expecting a value
+
+{ a => x => => b } | unexpected fat comma when expecting a key
+
+$VAR1 | Encountered variable in input. This is not eval - can not undump code
+

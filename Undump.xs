@@ -232,6 +232,7 @@ SV* _undump(pTHX_ const char **parse_start, const char const *parse_end, char ob
     char token= TOKEN_ERROR;
     char want_key= 0;
     char allow_comma= 0;
+    char require_fat_comma= 0;
     char stop_char;
     char ch;
     const char *key;
@@ -263,6 +264,7 @@ SV* _undump(pTHX_ const char **parse_start, const char const *parse_end, char ob
 
   REPARSE:
     while (parse_ptr < parse_end) {
+        /* warn("want_key: %d require_fat_comma: %d allow_comma: %d\n", want_key, require_fat_comma, allow_comma); */
         token_start= parse_ptr;
         token= TOKEN_ERROR;
         ch= *(parse_ptr++);
@@ -274,16 +276,17 @@ SV* _undump(pTHX_ const char **parse_start, const char const *parse_end, char ob
                 if ( *parse_ptr != '>' ) {
                     ERROR(depth,token,token_start,parse_ptr,parse_end,"Encountered assignment '=' or unterminated fat comma '=>'");
                 }
+                require_fat_comma = 0;
                 parse_ptr++;
                 /* fallthrough */
             case ',': 
                 /* comma */
-               if ( ! allow_comma ) {
-                    if ( want_key ) {
-                        ERROR(depth,token,token_start,parse_ptr,parse_end,"unexpected comma when expecting a key");
-                    } else {
-                        ERROR(depth,token,token_start,parse_ptr,parse_end,"unexpected comma when expecting a value");
-                    }
+                if ( require_fat_comma ) {
+                    ERROR(depth,token,token_start,parse_ptr,parse_end,"expected fat comma after bareword");
+                }
+                else if ( ! allow_comma ) {
+                    ERRORf2(depth,token,token_start,parse_ptr,parse_end,"unexpected %s when expecting a %s",
+                        (ch=='=' ? "fat comma" : "comma"),(want_key ? "key" : "value"));
                 }
                 allow_comma = 0;
                 goto REPARSE;
@@ -424,6 +427,11 @@ SV* _undump(pTHX_ const char **parse_start, const char const *parse_end, char ob
                     token= TOKEN_BAREWORD;
                 }
         } /* switch */
+        if (require_fat_comma) {
+            ERROR(depth,token,token_start,parse_ptr,parse_end,"expected fat comma after bareword");
+        } else if (allow_comma && token != TOKEN_CLOSE) {
+            ERRORf1(depth,token,token_start,parse_ptr,parse_end,"Expecting comma got %s",token_name[token]);
+        }
         SHOW_TOKEN(depth,token,token_start,parse_ptr);
         switch (token) {
             case TOKEN_BLESS:
@@ -633,13 +641,13 @@ SV* _undump(pTHX_ const char **parse_start, const char const *parse_end, char ob
                                             grok_len= esc_read - grok_start;
                                             esc_read++; /* skip '}' */
                                         }
-                                        // warn("hex: %.*s\n", grok_len, grok_start);
+                                        /* warn("hex: %.*s\n", grok_len, grok_start); */
                                         if (grok_len) {
                                             cp= grok_hex((char *)grok_start, &grok_len, &grok_flags, 0);
                                         } else {
                                             ERROR(depth,token,token_start,parse_ptr,parse_end,"empty \\x{} escape?");
                                         }
-                                        // warn("cp: %d\n len: %d flags: %d", cp, grok_len, grok_flags);
+                                        /* warn("cp: %d\n len: %d flags: %d", cp, grok_len, grok_flags); */
                                         if ( cp < 0x100 ) { /* otherwise it would be in octal */
                                             must_uni= 1;
                                         }
@@ -691,10 +699,9 @@ SV* _undump(pTHX_ const char **parse_start, const char const *parse_end, char ob
             }
             case TOKEN_BAREWORD:
                 /* fallthrough */
+                require_fat_comma= 1;
                 if (want_key) {
                     DONE_KEY_SIMPLE_break;
-                } else {
-                    ERROR(depth,token,token_start,parse_ptr,parse_end,"got a bareword where it was not expected");
                 }
                 if (got) {
                     ERROR(depth,token,token_start,parse_ptr,parse_end,"Multiple objects in stream?");
