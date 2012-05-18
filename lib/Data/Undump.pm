@@ -1,6 +1,5 @@
 package Data::Undump;
 
-use 5.008008;
 use strict;
 use warnings;
 
@@ -12,7 +11,7 @@ our @EXPORT_OK = qw( undump );
 our %EXPORT_TAGS = ( 'all' => \@EXPORT_OK );
 our @EXPORT = qw(undump);
 
-our $VERSION = '0.01';
+our $VERSION = '0.02';
 
 require XSLoader;
 XSLoader::load('Data::Undump', $VERSION);
