@@ -127,11 +127,23 @@ typedef struct frame_state {
 
     U8   token;
     U8 depth;
-    char want_key;
-    char allow_comma;
     char stop_char;
-    char require_fat_comma;
+    U32 flags;
 } frame_state;
+
+#define fsf_WANT_KEY           0x00000001
+#define fsf_ALLOW_COMMA        0x00000002
+#define fsf_REQUIRE_FAT_COMMA  0x00000004
+
+#define WANT_KEY(fs) (fs.flags & fsf_WANT_KEY)
+#define WANT_KEY_on(fs) (fs.flags= fs.flags | fsf_WANT_KEY)
+#define WANT_KEY_off(fs) (fs.flags= fs.flags & (~fsf_WANT_KEY))
+#define ALLOW_COMMA(fs) (fs.flags & fsf_ALLOW_COMMA)
+#define ALLOW_COMMA_on(fs) (fs.flags= fs.flags | fsf_ALLOW_COMMA)
+#define ALLOW_COMMA_off(fs) (fs.flags= fs.flags & (~fsf_ALLOW_COMMA))
+#define REQUIRE_FAT_COMMA(fs) (fs.flags & fsf_REQUIRE_FAT_COMMA)
+#define REQUIRE_FAT_COMMA_on(fs) (fs.flags= fs.flags | fsf_REQUIRE_FAT_COMMA)
+#define REQUIRE_FAT_COMMA_off(fs) (fs.flags= fs.flags & (~fsf_REQUIRE_FAT_COMMA))
 
 SV* _undump(pTHX_ parse_state *ps, char obj_char, U8 call_depth);
 
@@ -189,27 +201,25 @@ SV* undump(pTHX_ SV* sv) {
     }
 }
 
-#define fs_token           (fs.token)
-#define fs_token_start     (fs.token_start)
-#define fs_first_escape    (fs.first_escape)
+#define fs_token            (fs.token)
+#define fs_token_start      (fs.token_start)
+#define fs_first_escape     (fs.first_escape)
 
-#define fs_want_key        (fs.want_key)
-#define fs_allow_comma     (fs.allow_comma)
-#define fs_require_fat_comma     (fs.require_fat_comma)
-#define fs_stop_char       (fs.stop_char)
-#define fs_key             (fs.key)
-#define fs_key_len         (fs.key_len)
-#define fs_thing           (fs.thing)
-#define fs_got_key         (fs.got_key)
-#define fs_got             (fs.got)
-#define fs_depth           (fs.depth)
+#define fs_stop_char        (fs.stop_char)
+#define fs_key              (fs.key)
+#define fs_key_len          (fs.key_len)
+#define fs_thing            (fs.thing)
+#define fs_got_key          (fs.got_key)
+#define fs_got              (fs.got)
+#define fs_depth            (fs.depth)
+#define fs_flags            (fs.flags)
 
-#define ps_parse_sv        (ps->parse_sv)
-#define ps_string_start    (ps->string_start)
-#define ps_string_end      (ps->string_end)
-#define ps_string_len      (ps->string_len)
-#define ps_parse_ptr       (ps->parse_ptr)
-#define ps_line_num        (ps->line_num)
+#define ps_parse_sv         (ps->parse_sv)
+#define ps_string_start     (ps->string_start)
+#define ps_string_end       (ps->string_end)
+#define ps_string_len       (ps->string_len)
+#define ps_parse_ptr        (ps->parse_ptr)
+#define ps_line_num         (ps->line_num)
 
 #define DEPTH(D,T) ( ( (D) * 4 ) + ( ( (T) == TOKEN_OPEN || (T) == TOKEN_BLESS ) - ( (T) == TOKEN_CLOSE ) ) * 2 )
 
@@ -310,8 +320,8 @@ SV* undump(pTHX_ SV* sv) {
 
 
 #define DONE_KEY_break                      \
-        fs_want_key= 0;                        \
-        fs_allow_comma= 1;                     \
+        WANT_KEY_off(fs);                        \
+        ALLOW_COMMA_on(fs);                     \
         break
 #define DONE_KEY_SIMPLE_break               \
         fs_key= fs_token_start;                   \
@@ -337,10 +347,7 @@ SV* _undump(pTHX_ parse_state *ps, char obj_char, U8 call_depth) {
     frame_state fs;
 
     fs_token= TOKEN_ERROR;
-    fs_want_key= 0;
-    fs_allow_comma= 0;
-    fs_stop_char= 0;
-    fs_require_fat_comma= 0;
+    fs_flags= 0;
     fs_key= 0;
     fs_key_len= 0;
     fs_thing= 0;
@@ -361,7 +368,7 @@ SV* _undump(pTHX_ parse_state *ps, char obj_char, U8 call_depth) {
         fs_key= 0;
         fs_key_len= 0;
         fs_thing= (SV*)newHV();
-        fs_want_key= 1;
+        WANT_KEY_on(fs);
         fs_stop_char= '}';
     } else {
         PANICf1(ps,fs, "Unknown obj char '%c'", obj_char);
@@ -380,19 +387,19 @@ SV* _undump(pTHX_ parse_state *ps, char obj_char, U8 call_depth) {
                 if ( *ps_parse_ptr != '>' ) {
                     ERROR(ps,fs,"Encountered assignment '=' or unterminated fat comma '=>'");
                 }
-                fs_require_fat_comma = 0;
+                REQUIRE_FAT_COMMA_off(fs);
                 ps_parse_ptr++;
                 /* fallthrough */
             case ',': 
                 /* comma */
-                if ( fs_require_fat_comma ) {
+                if ( REQUIRE_FAT_COMMA(fs) ) {
                     ERROR(ps,fs,"expected fat comma after bareword");
                 }
-                else if ( ! fs_allow_comma ) {
+                else if ( ! ALLOW_COMMA(fs) ) {
                     ERRORf2(ps,fs,"unexpected %s when expecting a %s",
-                        (ch=='=' ? "fat comma" : "comma"),(fs_want_key ? "key" : "value"));
+                        (ch=='=' ? "fat comma" : "comma"),(WANT_KEY(fs) ? "key" : "value"));
                 }
-                fs_allow_comma = 0;
+                ALLOW_COMMA_off(fs);
                 goto REPARSE;
             case '$': 
             case '%': 
@@ -530,9 +537,9 @@ SV* _undump(pTHX_ parse_state *ps, char obj_char, U8 call_depth) {
                     fs_token= TOKEN_BAREWORD;
                 }
         } /* switch */
-        if (fs_require_fat_comma) {
+        if (REQUIRE_FAT_COMMA(fs)) {
             ERROR(ps,fs,"expected fat comma after bareword");
-        } else if (fs_allow_comma && fs_token != TOKEN_CLOSE) {
+        } else if (ALLOW_COMMA(fs) && fs_token != TOKEN_CLOSE) {
             ERRORf1(ps,fs,"Expecting comma got %s",token_name[fs_token]);
         }
         SHOW_TOKEN(ps,fs);
@@ -544,12 +551,12 @@ SV* _undump(pTHX_ parse_state *ps, char obj_char, U8 call_depth) {
                     ps_parse_ptr++;
                     /* ERROR(ps,fs,"after bless("); */
                 }
-                if (fs_want_key) {
+                if (WANT_KEY(fs)) {
                     ERRORf1(ps,fs,"unexpected bless() call when expecting a key", ch);
                 }
                 ch= 0; /* flag for blessing */
             case TOKEN_OPEN:
-                if (fs_want_key) {
+                if (WANT_KEY(fs)) {
                     ERRORf1(ps,fs,"unexpected open bracket '%c' when expecting a key", ch);
                 }
                 if (fs_got) {
@@ -573,7 +580,7 @@ SV* _undump(pTHX_ parse_state *ps, char obj_char, U8 call_depth) {
                         if ( ch != '\'' && ch != '\"') {
                             ERROR(ps,fs,"Expected quoted class name after object in bless()");
                         }
-                        quote = ch;
+                        quote= ch;
                         fs_token_start= ++ps_parse_ptr;
                         if (!bareword_start[(U8)*ps_parse_ptr]) {
                             ERROR(ps,fs,"Expected classname to start with [A-Za-z_]");
@@ -633,7 +640,7 @@ SV* _undump(pTHX_ parse_state *ps, char obj_char, U8 call_depth) {
                 break;
             }
             case TOKEN_UNDEF:
-                if (fs_want_key) {
+                if (WANT_KEY(fs)) {
                     ERROR(ps,fs,"got an undef when we wanted a key");
                 }
                 if (fs_got) {
@@ -650,11 +657,12 @@ SV* _undump(pTHX_ parse_state *ps, char obj_char, U8 call_depth) {
                 fs_token_start++; /* skip the first quote */
                 if ( !fs_first_escape ) {
                     /* it didnt contain any escapes */
-                    if ( fs_want_key ) {
+                    if ( WANT_KEY(fs) ) {
                         fs_key= fs_token_start;
                         fs_key_len= ps_parse_ptr - fs_token_start - 1; /* remove trailing quote */
-                        fs_want_key= 0;
-                        fs_allow_comma= 1;
+
+                        WANT_KEY_off(fs);
+                        ALLOW_COMMA_on(fs);
                         break;
                     }
                     if (fs_got) {
@@ -696,7 +704,7 @@ SV* _undump(pTHX_ parse_state *ps, char obj_char, U8 call_depth) {
                             if (*esc_read == '\\' && (esc_read[1] == '\\' || esc_read[1] == '\'')) {
                                 esc_read++;
                             }
-                            *esc_write++ = *esc_read++;
+                            *esc_write++= *esc_read++;
                         } while (esc_read < new_str_end);
                     } else { /* TOKEN_QQ_STRING */
                         while (esc_read < new_str_end) {
@@ -786,7 +794,7 @@ SV* _undump(pTHX_ parse_state *ps, char obj_char, U8 call_depth) {
                             sv_utf8_upgrade(fs_got);
                         }
                     }
-                    if (fs_want_key) {
+                    if (WANT_KEY(fs)) {
                         /* we contain stuff that will be used as a hash key lookup */
                         fs_got_key= fs_got;   /* swap got over to the got_key var for later */
                         fs_key= 0;         /* make sure we dont get confused about two keys */
@@ -801,8 +809,8 @@ SV* _undump(pTHX_ parse_state *ps, char obj_char, U8 call_depth) {
             }
             case TOKEN_BAREWORD:
                 /* fallthrough */
-                fs_require_fat_comma= 1;
-                if (fs_want_key) {
+                REQUIRE_FAT_COMMA_on(fs);
+                if (WANT_KEY(fs)) {
                     DONE_KEY_SIMPLE_break;
                 }
                 if (fs_got) {
@@ -814,7 +822,7 @@ SV* _undump(pTHX_ parse_state *ps, char obj_char, U8 call_depth) {
                 IV iv;
                 
                 /* fallthrough */
-                if (fs_want_key) {
+                if (WANT_KEY(fs)) {
                     DONE_KEY_SIMPLE_break;
                 } 
                 iv= 0;
@@ -866,7 +874,7 @@ SV* _undump(pTHX_ parse_state *ps, char obj_char, U8 call_depth) {
             }
             case TOKEN_NV:
             {
-                if (fs_want_key) {
+                if (WANT_KEY(fs)) {
                     DONE_KEY_SIMPLE_break;
                 }
                 MAKE_SV:
@@ -892,13 +900,13 @@ SV* _undump(pTHX_ parse_state *ps, char obj_char, U8 call_depth) {
                     } else {
                         PANIC(ps,fs,"got something to store, but no key?");
                     }
-                    fs_want_key= 1;
-                    fs_allow_comma= 1;
+                    WANT_KEY_on(fs);
+                    ALLOW_COMMA_on(fs);
                 } else if (obj_char == '[') {
                     /* av_push does not return anything - a little worrying? maybe better to av_store()*/
                     av_push((AV*)fs_thing, fs_got);
                     fs_got= 0;
-                    fs_allow_comma= 1;
+                    ALLOW_COMMA_on(fs);
                 } else {
                     return fs_got;
                 }
