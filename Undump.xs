@@ -208,7 +208,6 @@ const char bareword_rest[]= {
         key_len= parse_ptr - token_start;   \
         DONE_KEY_break                      
 
-SV* _undump(pTHX_ const char **parse_start, const char const *parse_end, char obj_char, unsigned int depth);
 
 
 /* recursively undump a DD style dump 
@@ -227,6 +226,7 @@ SV* _undump(pTHX_ const char **parse_start, const char const *parse_end, char ob
  *
  */
 
+SV* _undump(pTHX_ const char **parse_start, const char const *parse_end, char obj_char, unsigned int depth);
 SV* _undump(pTHX_ const char **parse_start, const char const *parse_end, char obj_char, unsigned int depth) {
     const char *parse_ptr= *parse_start;
     char token= TOKEN_ERROR;
