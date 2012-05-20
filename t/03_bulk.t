@@ -43,20 +43,18 @@ if (!@ARGV) {
     is($total,$eval_ok);
 }
 
-if ($ENV{BENCH}) {
-    my $result= cmpthese -1, {
-        ((0) ? ( 'read' => sub {
-            read_files(sub { return 1 });
-        }) : ()),
-        'eval'   => sub{
-            read_files(sub { my $VAR1; return eval($_[0]); })
-        },
-        'undump' => sub{
-            read_files(sub { return undump($_[0]); })
-        },
-        'undump_eval' => sub{
-            read_files(sub { my $VAR1; return( undump($_[0])||eval($_[0])); })
-        },
-    }; 
-    diag join "\n","", map {sprintf"%-20s" . (" %20s" x (@$_-1)), @$_ } @$result; 
-}
+my $result= cmpthese -1, {
+    ((0) ? ( 'read' => sub {
+        read_files(sub { return 1 });
+    }) : ()),
+    'eval'   => sub{
+        read_files(sub { my $VAR1; return eval($_[0]); })
+    },
+    'undump' => sub{
+        read_files(sub { return undump($_[0]); })
+    },
+    'undump_eval' => sub{
+        read_files(sub { my $VAR1; return( undump($_[0])||eval($_[0])); })
+    },
+};
+diag join "\n","", map {sprintf"%-20s" . (" %20s" x (@$_-1)), @$_ } @$result;
