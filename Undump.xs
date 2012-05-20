@@ -113,6 +113,7 @@ typedef struct parse_state {
     const char *string_end;
     SV *parse_sv;
     const char *parse_ptr;
+    AV *bless_info;
     U32 line_num;
 } parse_state;
 
@@ -166,6 +167,7 @@ SV* undump(pTHX_ SV* sv) {
     ps.parse_ptr= ps.string_start= SvPV(sv, ps.string_len);
     ps.string_end= ps.string_start + ps.string_len;
     ps.line_num= 0;
+    ps.bless_info= 0;
 
     if ( SvLEN(sv) <= ps.string_len || ps.parse_ptr[ps.string_len] != 0 ) {
         sv_setpv(ERRSV,"Malformed input string in undump (missing tail null)\n");
@@ -178,6 +180,31 @@ SV* undump(pTHX_ SV* sv) {
         EAT_WHITE(ps.parse_ptr);
     }
     if (undumped) {
+        if (ps.bless_info) {
+            U32 idx;
+            U32 len= av_len(ps.bless_info);
+            for (idx= 0; idx < len; idx+=2) {
+                SV **ref= av_fetch(ps.bless_info, idx, 0);
+                SV **class_name= av_fetch(ps.bless_info, idx+1, 0);
+                HV *stash;
+                if (!ref || !class_name) {
+                    sv_setpv(ERRSV, "failed to bless?");
+                    SvREFCNT_dec(undumped);
+                    SvREFCNT_dec(ps.bless_info);
+                    return newSV(0);
+                }
+                stash= gv_stashsv(*class_name, GV_ADD);
+                if (!stash) {
+                    sv_setpv(ERRSV,"Failed to load stash");
+                    SvREFCNT_dec(undumped);
+                    SvREFCNT_dec(ps.bless_info);
+                    return newSV(0);
+                }
+                sv_bless(*ref, stash);
+            }
+            SvREFCNT_dec(ps.bless_info);
+            ps.bless_info= 0;
+        }
         if (ps.parse_ptr < ps.string_end) {
             sv_setpv(ERRSV,"Unhandled tail garbage\n");
             SvREFCNT_dec(undumped);
@@ -211,6 +238,7 @@ SV* undump(pTHX_ SV* sv) {
 #define ps_string_len       (ps->string_len)
 #define ps_parse_ptr        (ps->parse_ptr)
 #define ps_line_num         (ps->line_num)
+#define ps_bless_info       (ps->bless_info)
 
 #define fsf_WANT_KEY           0x00000001
 #define fsf_ALLOW_COMMA        0x00000002
@@ -232,6 +260,7 @@ SV* undump(pTHX_ SV* sv) {
     if(fs_got) SvREFCNT_dec(fs_got);  \
     if(fs_got_key) SvREFCNT_dec(fs_got_key);  \
     if(fs_thing) SvREFCNT_dec(fs_thing);  \
+    if(ps_bless_info) SvREFCNT_dec(ps_bless_info); \
     return 0; \
 } STMT_END
 
@@ -600,9 +629,11 @@ SV* _undump(pTHX_ parse_state *ps, char obj_char, U8 call_depth) {
                 if (!fs_got) {
                     BAIL(ps,fs);
                 } else {
-                    if ( ch == 0 ) {
+                    if ( ch == 0 ) { /* handle TOKEN_BLESS */
                         char quote;
+                        SV *class_name;
                         HV *stash;
+
                         EAT_WHITE(ps_parse_ptr);
                         if (*ps_parse_ptr == ',') {
                             ps_parse_ptr++;
@@ -635,11 +666,7 @@ SV* _undump(pTHX_ parse_state *ps, char obj_char, U8 call_depth) {
                             ERROR(ps,fs,"Unterminated or corrupt classname");
                         } 
 
-                        /* XXX: mortalize 'got; here? can this die? */
-                        stash= gv_stashpvn(fs_token_start, ps_parse_ptr - fs_token_start, 1);
-                        if (!stash) {
-                            PANIC(ps,fs,"Failed to load stash");
-                        }
+                        class_name= newSVpvn(fs_token_start, ps_parse_ptr - fs_token_start);
                         ++ps_parse_ptr; /* skip quote */
                         EAT_WHITE(ps_parse_ptr); /* eat optional whitespace after quote */
                         ch= *ps_parse_ptr; /* check we have a close paren */
@@ -649,10 +676,12 @@ SV* _undump(pTHX_ parse_state *ps, char obj_char, U8 call_depth) {
                             ps_parse_ptr++;
                         }
                         /* and finally do the blessing */
-                        if(0) do_sv_dump(0, Perl_debug_log, fs_got, 0, 4, 0, 0);
-                        sv_bless(fs_got,stash);
-                        if(0) do_sv_dump(0, Perl_debug_log, fs_got, 0, 4, 0, 0);
-                        
+                        if (!ps_bless_info) {
+                            ps_bless_info= newAV();
+                        }
+                        SvREFCNT_inc(fs_got);
+                        av_push(ps_bless_info, fs_got);
+                        av_push(ps_bless_info, class_name);
                     }
                     goto GOT_SV;
                 }     
