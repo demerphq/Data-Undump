@@ -9,3 +9,6 @@ META.*
 MYMETA.*
 .*.swp
 .*.swo
+*.gz
+Makefile.old
+corpus.*

@@ -5,11 +5,14 @@ use Data::Dumper;
 use Test::More;
 use Test::LongString;
 use Data::Undump qw(undump);
-
+our $CORPUS;
+BEGIN {
+    $CORPUS||= $ENV{CORPUS} || "corpus";
+}
 sub read_files {
     my $sub= shift;
-    open my $fh, "<", "corpus"
-        or die "Failed to read event_dump: $!";
+    open my $fh, "<", $CORPUS
+        or die "Failed to read '$CORPUS': $!";
     local $/="\n---\n";
     $_[0]||=0;
     while (<$fh>) {
@@ -42,8 +45,8 @@ if (!@ARGV) {
     });
     is($total,$eval_ok);
 }
-
-my $result= cmpthese -1, {
+my $time= $CORPUS=~/big/ ? 5 : -1;
+my $result= cmpthese $time, {
     ((0) ? ( 'read' => sub {
         read_files(sub { return 1 });
     }) : ()),
