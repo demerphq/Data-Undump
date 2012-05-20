@@ -6,4 +6,5 @@ ppport.h
 README
 t/01_undump.t
 t/02_error.t
+t/03_bulk.t
 Undump.xs
