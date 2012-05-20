@@ -1,6 +1,15 @@
 Revision history for Perl extension Data::Undump.
 
 0.01  Wed May 16 00:05:34 2012
-	- original version; created by h2xs 1.23 with options
-		-A -n Data::Undump
+    - original version; created by h2xs 1.23 with options
+            -A -n Data::Undump
+
+0.02 Fri May 18 15:41:56 2012 +0200
+    - Do not require 5.8.8 (and changes to make it pass tests)
+
+0.03 Fri May 20 21:40
+    - Various test improvements - add a large corpus of test dumps
+    - Rework how internal state is stored and passed around so that
+      it is easier to break out functionality into subs, and add or
+      modify what needs to be passed up and down the stack.
 

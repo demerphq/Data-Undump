@@ -77,7 +77,12 @@ L<Data::Dumper>, L<eval>
 
 =head1 AUTHOR
 
-Yves Orton, E<lt>demerphq@gmail.comE<gt>
+Yves Orton E<lt>demerphq@gmail.comE<gt>
+
+with contributions by:
+
+Steffen Mueller E<lt>smueller@cpan.orgE<gt>
+Rafael Garcia-Suarez E<lt>rgs@consttype.orgE<gt>
 
 =head1 COPYRIGHT AND LICENSE
 
