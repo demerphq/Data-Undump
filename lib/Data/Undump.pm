@@ -39,7 +39,7 @@ use this software in production.>
 
 =head2 EXPORT
 
-By default exports the undump subroutine.
+By default exports the C<undump> subroutine.
 
 =head1 FUNCTIONS
 
@@ -50,7 +50,8 @@ Takes a plain string (magic not currently respected)
 containing a Data::Dumper Terse/Deepcopy style C<Dumper> output
 (ie. no C<$VAR1 => at the front allowed currently) and returns
 either undef for a failed parse, or a scalar value of the
-value parsed.
+value parsed. Also, in case of a failed parse, an error message
+will be available in the C<$@> variable.
 
 Restricted to objects nested up to 100 items deep.
 
@@ -85,5 +86,8 @@ Copyright (C) 2012 by Yves Orton
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself, either Perl version 5.8.8 or,
 at your option, any later version of Perl 5 you may have available.
+
+A git repository for this distribution can be found at
+L<https://github.com/demerphq/Data-Undump>.
 
 =cut
