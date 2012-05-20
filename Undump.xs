@@ -131,19 +131,6 @@ typedef struct frame_state {
     U32 flags;
 } frame_state;
 
-#define fsf_WANT_KEY           0x00000001
-#define fsf_ALLOW_COMMA        0x00000002
-#define fsf_REQUIRE_FAT_COMMA  0x00000004
-
-#define WANT_KEY(fs) (fs.flags & fsf_WANT_KEY)
-#define WANT_KEY_on(fs) (fs.flags= fs.flags | fsf_WANT_KEY)
-#define WANT_KEY_off(fs) (fs.flags= fs.flags & (~fsf_WANT_KEY))
-#define ALLOW_COMMA(fs) (fs.flags & fsf_ALLOW_COMMA)
-#define ALLOW_COMMA_on(fs) (fs.flags= fs.flags | fsf_ALLOW_COMMA)
-#define ALLOW_COMMA_off(fs) (fs.flags= fs.flags & (~fsf_ALLOW_COMMA))
-#define REQUIRE_FAT_COMMA(fs) (fs.flags & fsf_REQUIRE_FAT_COMMA)
-#define REQUIRE_FAT_COMMA_on(fs) (fs.flags= fs.flags | fsf_REQUIRE_FAT_COMMA)
-#define REQUIRE_FAT_COMMA_off(fs) (fs.flags= fs.flags & (~fsf_REQUIRE_FAT_COMMA))
 
 SV* _undump(pTHX_ parse_state *ps, char obj_char, U8 call_depth);
 
@@ -201,18 +188,18 @@ SV* undump(pTHX_ SV* sv) {
     }
 }
 
-#define fs_token            (fs.token)
-#define fs_token_start      (fs.token_start)
-#define fs_first_escape     (fs.first_escape)
+#define fs_token            (fs->token)
+#define fs_token_start      (fs->token_start)
+#define fs_first_escape     (fs->first_escape)
 
-#define fs_stop_char        (fs.stop_char)
-#define fs_key              (fs.key)
-#define fs_key_len          (fs.key_len)
-#define fs_thing            (fs.thing)
-#define fs_got_key          (fs.got_key)
-#define fs_got              (fs.got)
-#define fs_depth            (fs.depth)
-#define fs_flags            (fs.flags)
+#define fs_stop_char        (fs->stop_char)
+#define fs_key              (fs->key)
+#define fs_key_len          (fs->key_len)
+#define fs_thing            (fs->thing)
+#define fs_got_key          (fs->got_key)
+#define fs_got              (fs->got)
+#define fs_depth            (fs->depth)
+#define fs_flags            (fs->flags)
 
 #define ps_parse_sv         (ps->parse_sv)
 #define ps_string_start     (ps->string_start)
@@ -220,6 +207,20 @@ SV* undump(pTHX_ SV* sv) {
 #define ps_string_len       (ps->string_len)
 #define ps_parse_ptr        (ps->parse_ptr)
 #define ps_line_num         (ps->line_num)
+
+#define fsf_WANT_KEY           0x00000001
+#define fsf_ALLOW_COMMA        0x00000002
+#define fsf_REQUIRE_FAT_COMMA  0x00000004
+
+#define WANT_KEY(fs) (fs_flags & fsf_WANT_KEY)
+#define WANT_KEY_on(fs) (fs_flags= fs_flags | fsf_WANT_KEY)
+#define WANT_KEY_off(fs) (fs_flags= fs_flags & (~fsf_WANT_KEY))
+#define ALLOW_COMMA(fs) (fs_flags & fsf_ALLOW_COMMA)
+#define ALLOW_COMMA_on(fs) (fs_flags= fs_flags | fsf_ALLOW_COMMA)
+#define ALLOW_COMMA_off(fs) (fs_flags= fs_flags & (~fsf_ALLOW_COMMA))
+#define REQUIRE_FAT_COMMA(fs) (fs_flags & fsf_REQUIRE_FAT_COMMA)
+#define REQUIRE_FAT_COMMA_on(fs) (fs_flags= fs_flags | fsf_REQUIRE_FAT_COMMA)
+#define REQUIRE_FAT_COMMA_off(fs) (fs_flags= fs_flags & (~fsf_REQUIRE_FAT_COMMA))
 
 #define DEPTH(D,T) ( ( (D) * 4 ) + ( ( (T) == TOKEN_OPEN || (T) == TOKEN_BLESS ) - ( (T) == TOKEN_CLOSE ) ) * 2 )
 
@@ -229,8 +230,6 @@ SV* undump(pTHX_ SV* sv) {
     if(fs_thing) SvREFCNT_dec(fs_thing);  \
     return 0; \
 } STMT_END
-
-
 
 #define SHOW_POSITION( ps, fs, show_len ) STMT_START {\
     int remaining= (ps_string_end) - (ps_parse_ptr);  \
@@ -328,6 +327,27 @@ SV* undump(pTHX_ SV* sv) {
         fs_key_len= ps_parse_ptr - fs_token_start;   \
         DONE_KEY_break                      
 
+inline U8 scan_quote(parse_state* const ps, frame_state* const fs, const char quote_ch) {
+    fs_first_escape= 0;
+    while (ps_parse_ptr < ps_string_end && *ps_parse_ptr != quote_ch) {
+        /* check if its a valid escape */
+        if (*ps_parse_ptr == '\\' && (quote_ch == '"' || ps_parse_ptr[1] == '\\' || ps_parse_ptr[1] == '\'')) {
+            if (!fs_first_escape)
+                fs_first_escape= ps_parse_ptr;
+            ps_parse_ptr++;
+        } else if (quote_ch == '"' && (*ps_parse_ptr == '$' || *ps_parse_ptr == '@')) {
+            ERROR(ps,fs,"Unescaped '$' and '@' are illegal in double quoted strings");
+        }
+        ps_parse_ptr++;
+    }
+    if (ps_parse_ptr >= ps_string_end) {
+        ERRORf1(ps,fs,"unterminated %s quoted string", quote_ch=='"' ? "double" : "single");
+    }
+    assert(*ps_parse_ptr == quote_ch);
+    ps_parse_ptr++; /* skip over the trailing quote */
+    return fs_token= (quote_ch == '"' ? TOKEN_QQ_STRING : TOKEN_Q_STRING);
+}
+
 /* recursively undump a DD style dump 
  * 
  * If called with an obj_char then we are building an object of that type, otherwise we are searching for
@@ -344,7 +364,8 @@ SV* undump(pTHX_ SV* sv) {
  */
 SV* _undump(pTHX_ parse_state *ps, char obj_char, U8 call_depth) {
     char ch= 0;
-    frame_state fs;
+    frame_state fss;
+    frame_state *fs= &fss;
 
     fs_token= TOKEN_ERROR;
     fs_flags= 0;
@@ -415,43 +436,12 @@ SV* _undump(pTHX_ parse_state *ps, char obj_char, U8 call_depth) {
                 fs_token= TOKEN_CLOSE;
                 break;
             case '\'':
-                fs_first_escape= 0;
-                while (ps_parse_ptr < ps_string_end && *ps_parse_ptr != '\'') {
-                    /* check if its a valid escape */
-                    if (*ps_parse_ptr == '\\' && (ps_parse_ptr[1] == '\\' || ps_parse_ptr[1] == '\'')) {
-                        if (!fs_first_escape)
-                            fs_first_escape= ps_parse_ptr;
-                        ps_parse_ptr++;
-                    }
-                    ps_parse_ptr++;
-                    
-                }
-                if (ps_parse_ptr >= ps_string_end) {
-                    ERROR(ps,fs,"unterminated single quoted string");
-                }
-                assert(*ps_parse_ptr == ch);
-                ps_parse_ptr++; /* skip over the trailing quote */
-                fs_token= TOKEN_Q_STRING;
+                if (!scan_quote(ps,fs,'\''))
+                    BAIL(ps,fs);
                 break;
             case '\"':
-                /* quoted */
-                fs_first_escape= 0;
-                while (ps_parse_ptr < ps_string_end && *ps_parse_ptr != ch) {
-                    if (*ps_parse_ptr == '\\') { /* if its an escape pull off the backslash */
-                        if (!fs_first_escape)
-                            fs_first_escape= ps_parse_ptr;
-                        ps_parse_ptr++;
-                    } else if (*ps_parse_ptr == '$' || *ps_parse_ptr == '@') {
-                        ERROR(ps,fs,"Unescaped '$' and '@' are illegal in double quoted strings");
-                    }
-                    ps_parse_ptr++;
-                }
-                if (ps_parse_ptr >= ps_string_end) {
-                    ERROR(ps,fs,"unterminated double quoted string");
-                }
-                assert(*ps_parse_ptr == ch);
-                ps_parse_ptr++; /* skip over the trailing quote */
-                fs_token= TOKEN_QQ_STRING;
+                if (!scan_quote(ps,fs,'\"'))
+                    BAIL(ps,fs);
                 break;
             case '-':
                 ch= *ps_parse_ptr;
