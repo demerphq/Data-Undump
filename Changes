@@ -7,9 +7,11 @@ Revision history for Perl extension Data::Undump.
 0.02 Fri May 18 15:41:56 2012 +0200
     - Do not require 5.8.8 (and changes to make it pass tests)
 
-0.03 Fri May 20 21:40
+0.03 Sun May 20 21:40
     - Various test improvements - add a large corpus of test dumps
     - Rework how internal state is stored and passed around so that
       it is easier to break out functionality into subs, and add or
       modify what needs to be passed up and down the stack.
 
+0.04 Mon May 21
+    - Added the corpus file to the MANIFEST that was missing in 0.03
