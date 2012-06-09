@@ -620,7 +620,7 @@ SV* _undump(pTHX_ parse_state *ps, char obj_char, U8 call_depth) {
                     if (fs_got_key || fs_key) {
                         ERROR(ps,fs,"Odd number of items in hash constructor");
                     }
-                    return  newRV((SV *)fs_thing);
+                    return  newRV_noinc((SV *)fs_thing);
                 } else if (!fs_stop_char) {
                     ERRORf1(ps,fs,"Unexpected close bracket '%c'",ch);
                 } else {

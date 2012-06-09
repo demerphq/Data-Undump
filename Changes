@@ -1,8 +1,11 @@
 Revision history for Perl extension Data::Undump.
 
-0.01  Wed May 16 00:05:34 2012
-    - original version; created by h2xs 1.23 with options
-            -A -n Data::Undump
+0.05 Sat June 9 2012
+    - Fixed memory leak
+    - Reordered Changes
+
+0.04 Mon May 21
+    - Added the corpus file to the MANIFEST that was missing in 0.03
 
 0.02 Fri May 18 15:41:56 2012 +0200
     - Do not require 5.8.8 (and changes to make it pass tests)
@@ -13,5 +16,6 @@ Revision history for Perl extension Data::Undump.
       it is easier to break out functionality into subs, and add or
       modify what needs to be passed up and down the stack.
 
-0.04 Mon May 21
-    - Added the corpus file to the MANIFEST that was missing in 0.03
+0.01  Wed May 16 00:05:34 2012
+    - original version; created by h2xs 1.23 with options
+            -A -n Data::Undump
