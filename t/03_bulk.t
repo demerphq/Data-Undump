@@ -28,9 +28,9 @@ if (!@ARGV) {
     plan(tests=>$total+1);
     my $read= 0;
     my $eval_ok= read_files(sub {
-        print $read,"\n" unless ++$read % 1000;
+        print STDERR "# read $read\n" unless ++$read % 1000;
         my $undump = undump($_[0]);
-        if ($@) { 
+        if ($@) {
             my $ok= is($@,"Encountered variable in input. This is not eval - can not undump code\n")
                 or diag("\nUndump died with error:\n$@\n$_[0]\n"); 
             return $ok;
@@ -38,7 +38,7 @@ if (!@ARGV) {
         my $VAR1;
         my $eval= eval $_[0];
         my $eval_dump= Data::Dumper->new([$eval])->Sortkeys(1)->Dump();
-        my $undump_dump= Data::Dumper->new([$eval])->Sortkeys(1)->Dump();
+        my $undump_dump= Data::Dumper->new([$undump])->Sortkeys(1)->Dump();
         my $ok= is_string($eval_dump, $undump_dump)
             or diag $_[0];
         return $ok;
