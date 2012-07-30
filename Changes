@@ -1,5 +1,8 @@
 Revision history for Perl extension Data::Undump.
 
+0.07 Mon Jul 30 2012
+    - Silence a warning in 0.06
+
 0.06 Mon Jul 30 2012
     - Fixed problem with corrupt unicode strings
 

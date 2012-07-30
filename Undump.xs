@@ -747,14 +747,14 @@ SV* _undump(pTHX_ parse_state *ps, char obj_char, U8 call_depth) {
                                             grok_len= esc_read - grok_start;
                                             esc_read++; /* skip '}' */
                                         }
-                                        if (0) warn("hex: %.*s\n", grok_len, grok_start);
+                                        if (0) warn("hex: %.*s\n", (int)grok_len, grok_start);
                                         if (grok_len) {
                                             cp= grok_hex((char *)grok_start, &grok_len, &grok_flags, 0);
                                         } else {
                                             ERROR(ps,fs,"empty \\x{} escape?");
                                         }
 
-                                        if (0) warn("cp: %d\n len: %d flags: %d", cp, grok_len, grok_flags);
+                                        if (0) warn("cp: %d\n len: %d flags: %d", cp, (int)grok_len, grok_flags);
                                         if ( cp < 0x100 ) { /* otherwise it would be in octal */
                                             must_uni= 1;
                                         }
