@@ -28,6 +28,7 @@
     HASH:           OPEN_HASH  KEY_VALUE_LIST CLOSE_HASH
     ARRAY:          OPEN_ARRAY VALUE_LIST     CLOSE_ARRAY
 */
+/* 1 shows errors, 2 trace */
 #define MYDEBUG 0
 
 #define TOKEN_ERROR         0
@@ -668,25 +669,30 @@ SV* _undump(pTHX_ parse_state *ps, char obj_char, U8 call_depth) {
                     char is_uni= 0;
                     char must_uni= 0;                  
                     char *new_str_begin;
-                    char *new_str_end;
-                    char *esc_read;
+                    const char *esc_read;
+                    const char *esc_read_end;
+
                     char *esc_write;
                     STRLEN new_len;
                                 
                     if (fs_got) {
                         ERROR(ps,fs,"Multiple objects in stream?");
                     }
-                    /* create a new SV with a copy of the raw escaped string in it - with octal
-                       this is sufficient to guarantee enough space to unescape, with \x{} style
-                       escapes things are more complicated */
+                    /* create a new SV with a copy of the raw escaped string in it
+                     * note that we always have "room" to do this, all escaped structures
+                     * convert to something shorter than their escaped form, so we can do
+                     * things in place */
 
                     fs_got= newSVpvn(fs_token_start, ps_parse_ptr - fs_token_start - 1); /* remove trailing quote */
                     /* the sv now contains a copy of the unescaped string */ 
 
                     new_str_begin= SvPV(fs_got, new_len);
-                    new_str_end= new_str_begin + new_len;
-                    esc_read= esc_write= new_str_begin + ( fs_first_escape - fs_token_start );
-                    if (*esc_write != '\\') {
+                    esc_write= new_str_begin + ( fs_first_escape - fs_token_start );
+
+                    esc_read_end= fs_token_start + new_len;
+                    esc_read= fs_token_start + ( fs_first_escape - fs_token_start );
+
+                    if (*esc_read != '\\' || *esc_write != '\\') {
                         PANIC(ps,fs,"when parsing quoted string failed start quote sanity check");
                     }
                     if (fs_token == TOKEN_Q_STRING) {
@@ -695,12 +701,12 @@ SV* _undump(pTHX_ parse_state *ps, char obj_char, U8 call_depth) {
                                 esc_read++;
                             }
                             *esc_write++= *esc_read++;
-                        } while (esc_read < new_str_end);
+                        } while (esc_read < esc_read_end);
                     } else { /* TOKEN_QQ_STRING */
-                        while (esc_read < new_str_end) {
+                        while (esc_read < esc_read_end) {
                             U32 cp= *esc_read++;                            
                             if ( cp == '\\' ) {
-                                if (esc_read >= new_str_end) {
+                                if (esc_read >= esc_read_end) {
                                     PANIC(ps,fs,"ran off end of string");
                                 }
                                 ch= *esc_read++;
@@ -713,7 +719,7 @@ SV* _undump(pTHX_ parse_state *ps, char obj_char, U8 call_depth) {
                                     case '5':
                                     case '6':
                                         /* first octal digit */
-                                        grok_start= esc_read-1; /* it was advanced earlier */
+                                        grok_start= esc_read - 1; /* it was advanced earlier */
                                         ch= *esc_read;
                                         if ('0' <= ch && ch <= '6') { 
                                             /* second octal digit */
@@ -741,13 +747,14 @@ SV* _undump(pTHX_ parse_state *ps, char obj_char, U8 call_depth) {
                                             grok_len= esc_read - grok_start;
                                             esc_read++; /* skip '}' */
                                         }
-                                        /* warn("hex: %.*s\n", grok_len, grok_start); */
+                                        if (0) warn("hex: %.*s\n", grok_len, grok_start);
                                         if (grok_len) {
                                             cp= grok_hex((char *)grok_start, &grok_len, &grok_flags, 0);
                                         } else {
                                             ERROR(ps,fs,"empty \\x{} escape?");
                                         }
-                                        /* warn("cp: %d\n len: %d flags: %d", cp, grok_len, grok_flags); */
+
+                                        if (0) warn("cp: %d\n len: %d flags: %d", cp, grok_len, grok_flags);
                                         if ( cp < 0x100 ) { /* otherwise it would be in octal */
                                             must_uni= 1;
                                         }

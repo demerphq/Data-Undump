@@ -1,5 +1,8 @@
 Revision history for Perl extension Data::Undump.
 
+0.06 Mon Jul 30 2012
+    - Fixed problem with corrupt unicode strings
+
 0.05 Sat June 9 2012
     - Fixed memory leak
     - Reordered Changes
