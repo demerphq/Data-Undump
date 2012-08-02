@@ -543,7 +543,7 @@ SV* _undump(pTHX_ parse_state *ps, char obj_char, U8 call_depth) {
                     /* ERROR(ps,fs,"after bless("); */
                 }
                 if (WANT_KEY(fs)) {
-                    ERRORf1(ps,fs,"unexpected bless() call when expecting a key", ch);
+                    ERROR(ps,fs,"unexpected bless() call when expecting a key");
                 }
                 ch= 0; /* flag for blessing */
             case TOKEN_OPEN:
