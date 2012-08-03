@@ -39,7 +39,7 @@ if (!@ARGV) {
         my $eval= eval $_[0];
         my $eval_dump= Data::Dumper->new([$eval])->Sortkeys(1)->Dump();
         my $undump_dump= Data::Dumper->new([$undump])->Sortkeys(1)->Dump();
-        my $ok= is_string($eval_dump, $undump_dump)
+        my $ok= is_string($undump_dump, $eval_dump)
             or diag $_[0];
         return $ok;
     });
