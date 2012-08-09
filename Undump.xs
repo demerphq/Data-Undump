@@ -378,6 +378,7 @@ SV* _undump(pTHX_ parse_state *ps, char obj_char, U8 call_depth) {
 
     fs_token= TOKEN_ERROR;
     fs_flags= 0;
+    fs_refs= 0;
     fs_key= 0;
     fs_key_len= 0;
     fs_thing= 0;
