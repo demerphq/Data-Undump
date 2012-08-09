@@ -1,5 +1,8 @@
 Revision history for Perl extension Data::Undump.
 
+0.11 Thu Aug  9 2012
+    - v0.10 seems to have lost the octal fix from 0.09
+
 0.10 Thu Aug  9 2012
     - Rebase of v0.09. Sigh
 

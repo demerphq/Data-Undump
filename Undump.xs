@@ -723,14 +723,15 @@ SV* _undump(pTHX_ parse_state *ps, char obj_char, U8 call_depth) {
                                     case '4':
                                     case '5':
                                     case '6':
+                                    case '7':
                                         /* first octal digit */
                                         grok_start= esc_read - 1; /* it was advanced earlier */
                                         ch= *esc_read;
-                                        if ('0' <= ch && ch <= '6') { 
+                                        if ('0' <= ch && ch <= '7') {
                                             /* second octal digit */
                                             esc_read++;
                                             ch= *esc_read;
-                                            if ('0' <= ch && ch <= '6') {
+                                            if ('0' <= ch && ch <= '7') {
                                                 /* third octal digit */
                                                 esc_read++;
                                             }
