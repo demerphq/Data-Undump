@@ -120,7 +120,6 @@ typedef struct parse_state {
 typedef struct frame_state {
     const char *token_start;
     const char *first_escape;
-    const char *last_escape;
 
     const char *key;
     STRLEN key_len;
@@ -195,7 +194,6 @@ SV* undump(pTHX_ SV* sv) {
 #define fs_token            (fs->token)
 #define fs_token_start      (fs->token_start)
 #define fs_first_escape     (fs->first_escape)
-#define fs_last_escape      (fs->last_escape)
 
 #define fs_stop_char        (fs->stop_char)
 #define fs_key              (fs->key)
@@ -334,13 +332,12 @@ SV* undump(pTHX_ SV* sv) {
         DONE_KEY_break                      
 
 inline U8 scan_double_quote(parse_state* const ps, frame_state* const fs) {
-    fs_last_escape= fs_first_escape= 0;
+    fs_first_escape= 0;
     while (ps_parse_ptr < ps_string_end && *ps_parse_ptr != '"') {
         /* check if its an escape */
         if (*ps_parse_ptr == '\\') {
             if (!fs_first_escape)
                 fs_first_escape= ps_parse_ptr;
-            fs_last_escape= ps_parse_ptr;
             if (*++ps_parse_ptr > 127) {
                 ERROR(ps,fs,"Illegal character in input");
             }
@@ -360,13 +357,12 @@ inline U8 scan_double_quote(parse_state* const ps, frame_state* const fs) {
 }
 
 inline U8 scan_single_quote(parse_state* const ps, frame_state* const fs) {
-    fs_last_escape= fs_first_escape= 0;
+    fs_first_escape= 0;
     while (ps_parse_ptr < ps_string_end && *ps_parse_ptr != '\'') {
         /* check if its an escape */
         if (*ps_parse_ptr == '\\') {
             if (!fs_first_escape)
                 fs_first_escape= ps_parse_ptr;
-            fs_last_escape= ps_parse_ptr;
             if (*++ps_parse_ptr > 127) {
                 ERROR(ps,fs,"Illegal character in input");
             }
