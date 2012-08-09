@@ -333,29 +333,30 @@ SV* undump(pTHX_ SV* sv) {
         fs_key_len= ps_parse_ptr - fs_token_start;   \
         DONE_KEY_break                      
 
-inline U8 scan_quote(parse_state* const ps, frame_state* const fs, const char quote_ch) {
-    fs_last_escape= fs_first_escape= 0;
-    while (ps_parse_ptr < ps_string_end && *ps_parse_ptr != quote_ch) {
-        /* check if its a valid escape */
-        if (*ps_parse_ptr == '\\' && (quote_ch == '"' || ps_parse_ptr[1] == '\\' || ps_parse_ptr[1] == '\'')) {
-            if (!fs_first_escape)
-                fs_first_escape= ps_parse_ptr;
-            fs_last_escape= ps_parse_ptr;
-            ps_parse_ptr++;
-        } else if (quote_ch == '"' && (*ps_parse_ptr == '$' || *ps_parse_ptr == '@')) {
-            ERROR(ps,fs,"Unescaped '$' and '@' are illegal in double quoted strings");
-        } else if (*ps_parse_ptr>127) {
-            ERROR(ps,fs,"Illegal character in input");
-        }
-        ps_parse_ptr++;
-    }
-    if (ps_parse_ptr >= ps_string_end) {
-        ERRORf1(ps,fs,"unterminated %s quoted string", quote_ch=='"' ? "double" : "single");
-    }
-    assert(*ps_parse_ptr == quote_ch);
-    ps_parse_ptr++; /* skip over the trailing quote */
-    return fs_token= (quote_ch == '"' ? TOKEN_QQ_STRING : TOKEN_Q_STRING);
-}
+#define  scan_quote(ps, fs, quote_ch, fs_token) \
+STMT_START {                                                                                                        \
+    fs_last_escape= fs_first_escape= 0;                                                                             \
+    while (ps_parse_ptr < ps_string_end && *ps_parse_ptr != quote_ch) {                                             \
+        /* check if its a valid escape */                                                                           \
+        if (*ps_parse_ptr == '\\' && (quote_ch == '"' || ps_parse_ptr[1] == '\\' || ps_parse_ptr[1] == '\'')) {     \
+            if (!fs_first_escape)                                                                                   \
+                fs_first_escape= ps_parse_ptr;                                                                      \
+            fs_last_escape= ps_parse_ptr;                                                                           \
+            ps_parse_ptr++;                                                                                         \
+        } else if (quote_ch == '"' && (*ps_parse_ptr == '$' || *ps_parse_ptr == '@')) {                             \
+            ERROR(ps,fs,"Unescaped '$' and '@' are illegal in double quoted strings");                              \
+        } else if (*ps_parse_ptr>127) {                                                                             \
+            ERROR(ps,fs,"Illegal character in input");                                                              \
+        }                                                                                                           \
+        ps_parse_ptr++;                                                                                             \
+    }                                                                                                               \
+    if (ps_parse_ptr >= ps_string_end) {                                                                            \
+        ERRORf1(ps,fs,"unterminated %s quoted string", quote_ch=='"' ? "double" : "single");                        \
+    }                                                                                                               \
+    assert(*ps_parse_ptr == quote_ch);                                                                              \
+    ps_parse_ptr++; /* skip over the trailing quote */                                                              \
+    fs_token= (quote_ch == '"' ? TOKEN_QQ_STRING : TOKEN_Q_STRING);                                                 \
+} STMT_END
 
 /* recursively undump a DD style dump 
  * 
@@ -449,12 +450,10 @@ SV* _undump(pTHX_ parse_state *ps, char obj_char, U8 call_depth) {
                 fs_token= TOKEN_REF;
                 break;
             case '\'':
-                if (!scan_quote(ps,fs,'\''))
-                    BAIL(ps,fs);
+                scan_quote(ps,fs,'\'',fs_token);
                 break;
             case '"':
-                if (!scan_quote(ps,fs,'"'))
-                    BAIL(ps,fs);
+                scan_quote(ps,fs,'"',fs_token);
                 break;
             case '-':
                 ch= *ps_parse_ptr;
