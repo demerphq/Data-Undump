@@ -1,5 +1,8 @@
 Revision history for Perl extension Data::Undump.
 
+0.09 Thu Aug  9 2012
+    - Fix octal and speedup strings.
+
 0.08 Mon Jul 30 2012
     - Fixup 0.07 and 0.06 by adding missing test file.
       for some reason this test does not fail on all perls.

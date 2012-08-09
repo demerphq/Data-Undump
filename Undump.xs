@@ -119,6 +119,7 @@ typedef struct parse_state {
 typedef struct frame_state {
     const char *token_start;
     const char *first_escape;
+    const char *last_escape;
 
     const char *key;
     STRLEN key_len;
@@ -192,6 +193,7 @@ SV* undump(pTHX_ SV* sv) {
 #define fs_token            (fs->token)
 #define fs_token_start      (fs->token_start)
 #define fs_first_escape     (fs->first_escape)
+#define fs_last_escape      (fs->last_escape)
 
 #define fs_stop_char        (fs->stop_char)
 #define fs_key              (fs->key)
@@ -329,15 +331,18 @@ SV* undump(pTHX_ SV* sv) {
         DONE_KEY_break                      
 
 inline U8 scan_quote(parse_state* const ps, frame_state* const fs, const char quote_ch) {
-    fs_first_escape= 0;
+    fs_last_escape= fs_first_escape= 0;
     while (ps_parse_ptr < ps_string_end && *ps_parse_ptr != quote_ch) {
         /* check if its a valid escape */
         if (*ps_parse_ptr == '\\' && (quote_ch == '"' || ps_parse_ptr[1] == '\\' || ps_parse_ptr[1] == '\'')) {
             if (!fs_first_escape)
                 fs_first_escape= ps_parse_ptr;
+            fs_last_escape= ps_parse_ptr;
             ps_parse_ptr++;
         } else if (quote_ch == '"' && (*ps_parse_ptr == '$' || *ps_parse_ptr == '@')) {
             ERROR(ps,fs,"Unescaped '$' and '@' are illegal in double quoted strings");
+        } else if (*ps_parse_ptr>127) {
+            ERROR(ps,fs,"Illegal character in input");
         }
         ps_parse_ptr++;
     }
@@ -772,15 +777,27 @@ SV* _undump(pTHX_ parse_state *ps, char obj_char, U8 call_depth) {
                                     case 't': cp= '\t';   break; /* "\t" => "\\t", */
                                     default:  cp= ch;     break; /* literal */
                                 } /* switch on escape type */
+                                if (is_uni) {
+                                    sv_catpvf(fs_got, "%c", cp);
+                                } else if (cp < 256) {
+                                    *esc_write++= (char)cp;
+                                } else {
+                                    SvCUR_set(fs_got, esc_write - new_str_begin);
+                                    is_uni= 1;
+                                    sv_catpvf(fs_got, "%c", cp);
+                                }
                             } /* is an escape */
-                            if (is_uni) {
-                                sv_catpvf(fs_got, "%c", cp);
-                            } else if (cp < 256) {
+                            else if (!is_uni) {
                                 *esc_write++= (char)cp;
+                                while ( *esc_read != '\\' && esc_read < esc_read_end ) {
+                                    *esc_write++ = *esc_read++;
+                                }
                             } else {
-                                SvCUR_set(fs_got, esc_write - new_str_begin);
-                                is_uni= 1;
-                                sv_catpvf(fs_got, "%c", cp);
+                                const char *no_esc_start= esc_read - 1;
+                                while ( *esc_read != '\\' && esc_read < esc_read_end ) {
+                                    esc_read++;
+                                }
+                                sv_catpvn(fs_got, no_esc_start, esc_read - no_esc_start);
                             }
                         } /* while */
                     }  /* TOKEN_Q_STRING or TOKEN_QQ_STRING */
