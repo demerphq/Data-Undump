@@ -43,7 +43,8 @@
 #define TOKEN_QQ_STRING     9
 #define TOKEN_WS            10
 #define TOKEN_BLESS         11
-#define TOKEN_UNKNOWN       12
+#define TOKEN_REF           12
+#define TOKEN_UNKNOWN       13
 
 #define COND_ISWHITE(ch) ( (ch) == ' ' || (ch) == '\n' || (ch) == '\t' || (ch) == '\r' )
 #define CASE_ISWHITE ' ': case '\n': case '\t': case '\r'
@@ -131,6 +132,7 @@ typedef struct frame_state {
     U8 depth;
     char stop_char;
     U32 flags;
+    U32 refs;
 } frame_state;
 
 
@@ -203,6 +205,7 @@ SV* undump(pTHX_ SV* sv) {
 #define fs_got              (fs->got)
 #define fs_depth            (fs->depth)
 #define fs_flags            (fs->flags)
+#define fs_refs             (fs->refs)
 
 #define ps_parse_sv         (ps->parse_sv)
 #define ps_string_start     (ps->string_start)
@@ -441,12 +444,15 @@ SV* _undump(pTHX_ parse_state *ps, char obj_char, U8 call_depth) {
             case '}':
                 fs_token= TOKEN_CLOSE;
                 break;
+            case '\\':
+                fs_token= TOKEN_REF;
+                break;
             case '\'':
                 if (!scan_quote(ps,fs,'\''))
                     BAIL(ps,fs);
                 break;
-            case '\"':
-                if (!scan_quote(ps,fs,'\"'))
+            case '"':
+                if (!scan_quote(ps,fs,'"'))
                     BAIL(ps,fs);
                 break;
             case '-':
@@ -540,6 +546,15 @@ SV* _undump(pTHX_ parse_state *ps, char obj_char, U8 call_depth) {
         }
         SHOW_TOKEN(ps,fs);
         switch (fs_token) {
+            case TOKEN_REF:
+                if (WANT_KEY(fs)) {
+                    ERRORf1(ps,fs,"unexpected open bracket '%c' when expecting a key", ch);
+                }
+                if (fs_got) {
+                    ERROR(ps,fs,"Multiple objects in stream?");
+                }
+                fs_refs++;
+                break;
             case TOKEN_BLESS:
                 if ( *ps_parse_ptr != '(') {
                     ERROR(ps,fs,"expected a '(' after 'bless'");
@@ -898,6 +913,10 @@ SV* _undump(pTHX_ parse_state *ps, char obj_char, U8 call_depth) {
                 }
                 fs_got= newSVpvn(fs_token_start, ps_parse_ptr - fs_token_start);
                 GOT_SV:
+                while ( fs_refs > 0 ) {
+                    fs_got= newRV_noinc((SV*)fs_got);
+                    fs_refs--;
+                }
                 if (obj_char == '{') {
                     if (fs_key) {
                         if (!hv_store((HV*)fs_thing, fs_key, fs_key_len, fs_got, 0)) {
