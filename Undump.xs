@@ -706,17 +706,17 @@ SV* _undump(pTHX_ parse_state *ps, char obj_char, U8 call_depth) {
                     goto GOT_SV;                
                 } else {
                     /* contains escapes - so we have to unescape it */
-                    STRLEN grok_len= 0;
+                    STRLEN len= 0;
                     I32 grok_flags= 0;
                     const char *grok_start;
                     char is_uni= 0;
-                    char must_uni= 0;                  
+                    char must_upgrade= 0;
                     char *new_str_begin;
                     const char *esc_read;
                     const char *esc_read_end;
 
                     char *esc_write;
-                    STRLEN new_len;
+                    char *esc_write_end;
                                 
                     if (fs_got) {
                         ERROR(ps,fs,"Multiple objects in stream?");
@@ -729,10 +729,11 @@ SV* _undump(pTHX_ parse_state *ps, char obj_char, U8 call_depth) {
                     fs_got= newSVpvn(fs_token_start, ps_parse_ptr - fs_token_start - 1); /* remove trailing quote */
                     /* the sv now contains a copy of the unescaped string */ 
 
-                    new_str_begin= SvPV(fs_got, new_len);
+                    new_str_begin= SvPV(fs_got, len);
                     esc_write= new_str_begin + ( fs_first_escape - fs_token_start );
+                    esc_write_end= new_str_begin + len;
 
-                    esc_read_end= fs_token_start + new_len;
+                    esc_read_end= fs_token_start + len;
                     esc_read= fs_token_start + ( fs_first_escape - fs_token_start );
 
                     if (*esc_read != '\\' || *esc_write != '\\') {
@@ -774,8 +775,11 @@ SV* _undump(pTHX_ parse_state *ps, char obj_char, U8 call_depth) {
                                                 esc_read++;
                                             }
                                         }
-                                        grok_len= esc_read - grok_start;
-                                        cp= grok_oct((char *)grok_start, &grok_len, &grok_flags, 0);
+                                        len= esc_read - grok_start;
+                                        cp= grok_oct((char *)grok_start, &len, &grok_flags, 0);
+                                        if (cp>127) {
+                                            must_upgrade=1;
+                                        }
                                         break;
                                     case 'x':
                                         if (*esc_read != '{') {
@@ -788,19 +792,29 @@ SV* _undump(pTHX_ parse_state *ps, char obj_char, U8 call_depth) {
                                         if (*esc_read != '}') {
                                             ERROR(ps,fs,"unterminated \\x{} in double quoted string");
                                         } else {
-                                            grok_len= esc_read - grok_start;
+                                            len= esc_read - grok_start;
                                             esc_read++; /* skip '}' */
                                         }
-                                        if (0) warn("hex: %.*s\n", (int)grok_len, grok_start);
-                                        if (grok_len) {
-                                            cp= grok_hex((char *)grok_start, &grok_len, &grok_flags, 0);
+                                        if (0) warn("hex: %.*s\n", (int)len, grok_start);
+                                        if (len) {
+                                            cp= grok_hex((char *)grok_start, &len, &grok_flags, 0);
                                         } else {
                                             ERROR(ps,fs,"empty \\x{} escape?");
                                         }
 
-                                        if (0) warn("cp: %d\n len: %d flags: %d", cp, (int)grok_len, grok_flags);
-                                        if ( cp < 0x100 ) { /* otherwise it would be in octal */
-                                            must_uni= 1;
+                                        if (0) warn("cp: %d\n len: %d flags: %d", cp, (int)len, grok_flags);
+                                        if ( !is_uni ) { /* otherwise it would be in octal */
+                                            STRLEN len;
+                                            is_uni= 1;
+                                            if (must_upgrade) {
+                                                SvCUR_set(fs_got, esc_write - new_str_begin);
+                                                len= sv_utf8_upgrade_nomg(fs_got);
+                                                new_str_begin= SvPV_nolen(fs_got);
+                                                esc_write= new_str_begin+len;
+                                                esc_write_end= new_str_begin + SvLEN(fs_got);
+                                            } else {
+                                                SvUTF8_on(fs_got);
+                                            }
                                         }
                                         if (cp>0x10FFFF) {
                                             ERRORf1(ps,fs,"Illegal codepoint in \\x{%x}",cp);
@@ -817,36 +831,37 @@ SV* _undump(pTHX_ parse_state *ps, char obj_char, U8 call_depth) {
                                     default:  cp= ch;     break; /* literal */
                                 } /* switch on escape type */
                                 if (is_uni) {
-                                    sv_catpvf(fs_got, "%c", cp);
-                                } else if (cp < 256) {
+                                    if ( esc_write_end - esc_write < UTF8_MAXBYTES + 1 ) {
+                                        SvCUR_set(fs_got, esc_write - new_str_begin);
+                                        new_str_begin= SvGROW(fs_got, UTF8_MAXBYTES + 1);
+                                        esc_write= SvEND(fs_got);
+                                        esc_write_end= new_str_begin + SvLEN(fs_got);
+                                    }
+                                    esc_write= uvchr_to_utf8(esc_write, cp);
+                                }
+                                else {
                                     *esc_write++= (char)cp;
-                                } else {
-                                    SvCUR_set(fs_got, esc_write - new_str_begin);
-                                    is_uni= 1;
-                                    sv_catpvf(fs_got, "%c", cp);
                                 }
-                            } /* is an escape */
-                            else if (!is_uni) {
-                                *esc_write++= (char)cp;
-                                while ( *esc_read != '\\' && esc_read < esc_read_end ) {
-                                    *esc_write++ = *esc_read++;
-                                }
-                            } else {
+                            } /* end - is an escape */
+                            else {
                                 const char *no_esc_start= esc_read - 1;
                                 while ( *esc_read != '\\' && esc_read < esc_read_end ) {
                                     esc_read++;
                                 }
-                                sv_catpvn(fs_got, no_esc_start, esc_read - no_esc_start);
+                                len= esc_read - no_esc_start + 1;
+                                if ( is_uni && esc_write_end - esc_write < len ) {
+                                    SvCUR_set(fs_got, esc_write - new_str_begin);
+                                    new_str_begin= SvGROW(fs_got, len);
+                                    esc_write= SvEND(fs_got);
+                                    esc_write_end= new_str_begin + SvLEN(fs_got);
+                                }
+                                Copy(no_esc_start, esc_write, len - 1, char);
+                                esc_write += esc_read - no_esc_start;
                             }
                         } /* while */
                     }  /* TOKEN_Q_STRING or TOKEN_QQ_STRING */
-                    if (!is_uni) {
-                        SvCUR_set(fs_got, esc_write - new_str_begin);
-                        *esc_write++= 0;
-                        if (must_uni && !is_uni) {
-                            sv_utf8_upgrade(fs_got);
-                        }
-                    }
+                    SvCUR_set(fs_got, esc_write - new_str_begin);
+                    *esc_write++= 0;
                     if (WANT_KEY(fs)) {
                         /* we contain stuff that will be used as a hash key lookup */
                         fs_got_key= fs_got;   /* swap got over to the got_key var for later */

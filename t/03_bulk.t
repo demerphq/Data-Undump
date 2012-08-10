@@ -9,17 +9,23 @@ our $CORPUS;
 BEGIN {
     $CORPUS||= $ENV{CORPUS} || "corpus";
 }
+my @corpus;
 sub read_files {
     my $sub= shift;
-    open my $fh, "<", $CORPUS
-        or die "Failed to read '$CORPUS': $!";
-    local $/="\n---\n";
-    $_[0]||=0;
-    while (<$fh>) {
-        chomp;
+    if (!@corpus) {
+        open my $fh, "<", $CORPUS
+            or die "Failed to read '$CORPUS': $!";
+        local $/="\n---\n";
+        $_[0]||=0;
+        while (<$fh>) {
+            chomp;
+            push @corpus, $_;
+        }
+        close $fh;
+    }
+    foreach (@corpus) {
         $_[0]++ if $sub->($_);
     }
-    close $fh;
     $_[0];
 }
 
@@ -45,7 +51,7 @@ if (!@ARGV) {
     });
     is($total,$eval_ok);
 }
-my $time= $CORPUS=~/big/ ? 5 : -1;
+my $time= $CORPUS=~/big/ ? 5 : -5;
 my $result= cmpthese $time, {
     ((0) ? ( 'read' => sub {
         read_files(sub { return 1 });
