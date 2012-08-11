@@ -831,12 +831,14 @@ SV* _undump(pTHX_ parse_state *ps, char obj_char, U8 call_depth) {
                                     default:  cp= ch;     break; /* literal */
                                 } /* switch on escape type */
                                 if (is_uni) {
+                                    /*
                                     if ( esc_write_end - esc_write < UTF8_MAXBYTES + 1 ) {
                                         SvCUR_set(fs_got, esc_write - new_str_begin);
                                         new_str_begin= SvGROW(fs_got, UTF8_MAXBYTES + 1);
                                         esc_write= SvEND(fs_got);
                                         esc_write_end= new_str_begin + SvLEN(fs_got);
                                     }
+                                    */
                                     esc_write= uvchr_to_utf8(esc_write, cp);
                                 }
                                 else {
@@ -849,12 +851,14 @@ SV* _undump(pTHX_ parse_state *ps, char obj_char, U8 call_depth) {
                                     esc_read++;
                                 }
                                 len= esc_read - no_esc_start + 1;
+                                /*
                                 if ( is_uni && esc_write_end - esc_write < len ) {
                                     SvCUR_set(fs_got, esc_write - new_str_begin);
                                     new_str_begin= SvGROW(fs_got, len);
                                     esc_write= SvEND(fs_got);
                                     esc_write_end= new_str_begin + SvLEN(fs_got);
                                 }
+                                */
                                 Copy(no_esc_start, esc_write, len - 1, char);
                                 esc_write += esc_read - no_esc_start;
                             }
