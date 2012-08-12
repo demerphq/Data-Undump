@@ -1,6 +1,13 @@
 Revision history for Perl extension Data::Undump.
 
-0.13 Sun Aug 13 2012
+0.14 Sun Aug 12 2012
+    - Really fix up issues parsing large numbers
+      (apparently I modified the .c file and not the
+       .xs file, which was then not committed or included
+       in the 0.13 dist - which I knew would be broken
+       somehow.)
+
+0.13 Sun Aug 12 2012
     - Make it illegal to try to undump duplicate keys
     - fix up issues parsing large numbers
 

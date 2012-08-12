@@ -891,57 +891,57 @@ SV* _undump(pTHX_ parse_state *ps, char obj_char, U8 call_depth) {
                 fs_got= newSVpvn(fs_token_start, ps_parse_ptr - fs_token_start);
                 goto GOT_SV;
             case TOKEN_IV:{
-                IV iv;
-                
                 /* fallthrough */
                 if (WANT_KEY(fs)) {
                     DONE_KEY_SIMPLE_break;
                 } 
-                iv= 0;
                 ch= ps_parse_ptr - fs_token_start;
                 if (fs_token_start[0] == '-') {
+                    IV iv= 0;
                     if ( ch < 12) {
                         fs_token_start++;
                         switch (ch) {
-                            case 11: iv -= (*fs_token_start++ - '0') * 1000000000;
-                            case 10: iv -= (*fs_token_start++ - '0') * 100000000;
-                            case  9: iv -= (*fs_token_start++ - '0') * 10000000;
-                            case  8: iv -= (*fs_token_start++ - '0') * 1000000;
-                            case  7: iv -= (*fs_token_start++ - '0') * 100000;
-                            case  6: iv -= (*fs_token_start++ - '0') * 10000;
-                            case  5: iv -= (*fs_token_start++ - '0') * 1000;
-                            case  4: iv -= (*fs_token_start++ - '0') * 100;
-                            case  3: iv -= (*fs_token_start++ - '0') * 10;
-                            case  2: iv -= (*fs_token_start++ - '0') * 1;
+                            case 11: iv -= (*fs_token_start++ - '0') * 1000000000L;
+                            case 10: iv -= (*fs_token_start++ - '0') * 100000000L;
+                            case  9: iv -= (*fs_token_start++ - '0') * 10000000L;
+                            case  8: iv -= (*fs_token_start++ - '0') * 1000000L;
+                            case  7: iv -= (*fs_token_start++ - '0') * 100000L;
+                            case  6: iv -= (*fs_token_start++ - '0') * 10000L;
+                            case  5: iv -= (*fs_token_start++ - '0') * 1000L;
+                            case  4: iv -= (*fs_token_start++ - '0') * 100L;
+                            case  3: iv -= (*fs_token_start++ - '0') * 10L;
+                            case  2: iv -= (*fs_token_start++ - '0') * 1L;
                                 break;
                             default: 
                                 PANICf1(ps,fs,"Strange length for negative integer in switch: %d", ch);
                         }
+                        fs_got= newSViv(iv);
                     } else {
                         goto MAKE_SV;
                     }
                 } else {
                     if (ch < 11 ) {
+                        UV uv= 0;
                         switch (ch) {
-                            case 10: iv += (*fs_token_start++ - '0') * 1000000000;
-                            case  9: iv += (*fs_token_start++ - '0') * 100000000;
-                            case  8: iv += (*fs_token_start++ - '0') * 10000000;
-                            case  7: iv += (*fs_token_start++ - '0') * 1000000;
-                            case  6: iv += (*fs_token_start++ - '0') * 100000;
-                            case  5: iv += (*fs_token_start++ - '0') * 10000;
-                            case  4: iv += (*fs_token_start++ - '0') * 1000;
-                            case  3: iv += (*fs_token_start++ - '0') * 100;
-                            case  2: iv += (*fs_token_start++ - '0') * 10;
-                            case  1: iv += (*fs_token_start++ - '0') * 1;
+                            case 10: uv += (*fs_token_start++ - '0') * 1000000000L;
+                            case  9: uv += (*fs_token_start++ - '0') * 100000000L;
+                            case  8: uv += (*fs_token_start++ - '0') * 10000000L;
+                            case  7: uv += (*fs_token_start++ - '0') * 1000000L;
+                            case  6: uv += (*fs_token_start++ - '0') * 100000L;
+                            case  5: uv += (*fs_token_start++ - '0') * 10000L;
+                            case  4: uv += (*fs_token_start++ - '0') * 1000L;
+                            case  3: uv += (*fs_token_start++ - '0') * 100L;
+                            case  2: uv += (*fs_token_start++ - '0') * 10L;
+                            case  1: uv += (*fs_token_start++ - '0') * 1L;
                                 break;
                             default: 
                                 PANICf1(ps,fs,"Strange length for integer in switch: %d", ch);
                         }
+                        fs_got= newSVuv(uv);
                     } else {
                         goto MAKE_SV;
                     }
                 }
-                fs_got= newSViv(iv);
                 goto GOT_SV;
             }
             case TOKEN_NV:
