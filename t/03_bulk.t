@@ -5,33 +5,50 @@ use Data::Dumper;
 use Test::More;
 use Test::LongString;
 use Data::Undump qw(undump);
+our $HAVE_JSON_XS;
+BEGIN {
+    $HAVE_JSON_XS= eval "use JSON::XS; 1";
+}
 our $CORPUS;
 BEGIN {
     $CORPUS||= $ENV{CORPUS} || "corpus";
 }
 my @corpus;
+my @js_corpus;
 sub read_files {
-    my $sub= shift;
+    my ($sub, $json)= @_;
     if (!@corpus) {
+        print "Reading\n";
         open my $fh, "<", $CORPUS
             or die "Failed to read '$CORPUS': $!";
         local $/="\n---\n";
-        $_[0]||=0;
         while (<$fh>) {
             chomp;
             push @corpus, $_;
+            if ($HAVE_JSON_XS) {
+                if (ref( my $res= undump($_))) {
+                    push @js_corpus, encode_json($res);
+                }
+            }
         }
         close $fh;
     }
-    foreach (@corpus) {
-        $_[0]++ if $sub->($_);
+    my $count= 0;
+    if ($json) {
+        foreach (@js_corpus) {
+            $count++ if $sub->($_);
+        }
+    } else {
+        foreach (@corpus) {
+            $count++ if $sub->($_);
+        }
     }
-    $_[0];
+    return $count;
 }
 
 if (!@ARGV) {
     my $total= read_files(sub { return 1 });
-    plan(tests=>$total+1);
+    plan( tests => $total + 1 );
     my $read= 0;
     my $eval_ok= read_files(sub {
         print STDERR "# read $read\n" unless ++$read % 1000;
@@ -65,5 +82,10 @@ my $result= cmpthese $time, {
     'undump_eval' => sub{
         read_files(sub { my $VAR1; return( undump($_[0])||eval($_[0])); })
     },
+    $HAVE_JSON_XS ? (
+        'undump_json' => sub {
+            read_files(sub { return decode_json($_[0]) },1),
+        }
+    ) : (),
 };
 diag join "\n","", map {sprintf"%-20s" . (" %20s" x (@$_-1)), @$_ } @$result;
