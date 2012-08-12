@@ -954,28 +954,33 @@ SV* _undump(pTHX_ parse_state *ps, char obj_char, U8 call_depth) {
                     ERROR(ps,fs,"Multiple objects in stream?");
                 }
                 fs_got= newSVpvn(fs_token_start, ps_parse_ptr - fs_token_start);
-                GOT_SV:
+            GOT_SV:
                 while ( fs_refs > 0 ) {
                     fs_got= newRV_noinc((SV*)fs_got);
                     fs_refs--;
                 }
                 if (obj_char == '{') {
+                    HE *ent;
                     if (fs_key) {
-                        if (!hv_store((HV*)fs_thing, fs_key, fs_key_len, fs_got, 0)) {
-                            PANIC(ps,fs,"failed to store in hash using key/key_len");
-                        }
-                        fs_got= 0;
-                        fs_key= 0;
+                        ent= hv_common((HV *)fs_thing, NULL, fs_key, fs_key_len, 0, HV_FETCH_LVALUE, NULL, 0);
                     } else if (fs_got_key) {
-                        if (!hv_store_ent((HV*)fs_thing, fs_got_key, fs_got, 0)) {
-                            PANIC(ps,fs,"failed to store using sv key");
-                        }
+                        ent= hv_common((HV *)fs_thing, fs_got_key, NULL, 0, 0, HV_FETCH_LVALUE, NULL, 0);
                         SvREFCNT_dec(fs_got_key);
-                        fs_got= 0;
                         fs_got_key= 0;
                     } else {
                         PANIC(ps,fs,"got something to store, but no key?");
                     }
+                    if (!ent) {
+                        PANIC(ps,fs,"failed to store in hash");
+                    }
+                    if (SvOK(HeVAL(ent))) {
+                        ERRORf2(ps,fs,"duplicate key '%.*s' is illegal", (int)fs_key_len, fs_key);
+                    } else {
+                        SvREFCNT_dec(HeVAL(ent));
+                        HeVAL(ent)= fs_got;
+                    }
+                    fs_key= 0;
+                    fs_got= 0;
                     WANT_KEY_on(fs);
                     ALLOW_COMMA_on(fs);
                 } else if (obj_char == '[') {
