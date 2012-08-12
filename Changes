@@ -1,5 +1,8 @@
 Revision history for Perl extension Data::Undump.
 
+0.12 Sun Aug 12 2012
+    - Performance improvements. Handle scalar refs.
+
 0.11 Thu Aug  9 2012
     - v0.10 seems to have lost the octal fix from 0.09
 
