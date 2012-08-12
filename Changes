@@ -1,5 +1,9 @@
 Revision history for Perl extension Data::Undump.
 
+0.13 Sun Aug 13 2012
+    - Make it illegal to try to undump duplicate keys
+    - fix up issues parsing large numbers
+
 0.12 Sun Aug 12 2012
     - Performance improvements. Handle scalar refs.
 
