@@ -115,6 +115,8 @@ typedef struct parse_state {
     const char *parse_ptr;
     AV *bless_info;
     U32 line_num;
+    /* if not NULL, this contains the whitelist of valid class names */
+    HV *valid_classes;
 } parse_state;
 
 
@@ -155,7 +157,7 @@ SV* _undump(pTHX_ parse_state *ps, char obj_char, U8 call_depth);
  *    so parse it as '1,1,1' instead.
  */
 
-SV* undump(pTHX_ SV* sv) {
+SV* undump(pTHX_ SV* sv, HV* options) {
     parse_state ps;
     SV *undumped= 0;
 
@@ -168,10 +170,25 @@ SV* undump(pTHX_ SV* sv) {
     ps.string_end= ps.string_start + ps.string_len;
     ps.line_num= 0;
     ps.bless_info= 0;
+    ps.valid_classes = NULL;
 
     if ( SvLEN(sv) <= ps.string_len || ps.parse_ptr[ps.string_len] != 0 ) {
         sv_setpv(ERRSV,"Malformed input string in undump (missing tail null)\n");
         return newSV(0);
+    }
+
+    /* go through the provided options that impact runtime behaviour */
+    if (options != NULL) {
+        SV **svp;
+        /* optionally, the user can provide a whitelist of class names */
+        if ( (svp = hv_fetchs(options, "valid_class_names", 0)) && SvTRUE(*svp)) {
+            if (!SvROK(*svp) || SvTYPE(*svp) != SVt_PVHV) {
+                sv_setpv(ERRSV,"Option 'valid_class_names' must be a hash reference!\n");
+                return newSV(0);
+            }
+            else
+                ps.valid_classes = (HV *)*svp;
+        }
     }
 
     EAT_WHITE(ps.parse_ptr);
@@ -666,6 +683,12 @@ SV* _undump(pTHX_ parse_state *ps, char obj_char, U8 call_depth) {
                             ERROR(ps,fs,"Unterminated or corrupt classname");
                         } 
 
+                        if (ps->valid_classes != NULL
+                            && !hv_exists(ps->valid_classes, fs_token_start, ps_parse_ptr - fs_token_start))
+                        {
+                            ERROR(ps,fs,"Class name white list in use, but this class name is not part of it");
+                        }
+
                         class_name= newSVpvn(fs_token_start, ps_parse_ptr - fs_token_start);
                         ++ps_parse_ptr; /* skip quote */
                         EAT_WHITE(ps_parse_ptr); /* eat optional whitespace after quote */
@@ -1044,9 +1067,8 @@ PROTOTYPES: DISABLE
 
 
 SV *
-undump (sv)
-        SV *sv
+undump (SV *sv, HV *options = NULL)
     CODE:
-        RETVAL = undump(aTHX_ sv);
+        RETVAL = undump(aTHX_ sv, options);
     OUTPUT: RETVAL
 
