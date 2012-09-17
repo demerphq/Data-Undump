@@ -331,7 +331,7 @@ SV* undump(pTHX_ SV* sv) {
         fs_key_len= ps_parse_ptr - fs_token_start;   \
         DONE_KEY_break                      
 
-inline U8 scan_double_quote(parse_state* const ps, frame_state* const fs) {
+static inline U8 scan_double_quote(parse_state* const ps, frame_state* const fs) {
     fs_first_escape= 0;
     while (ps_parse_ptr < ps_string_end && *ps_parse_ptr != '"') {
         /* check if its an escape */
@@ -356,7 +356,7 @@ inline U8 scan_double_quote(parse_state* const ps, frame_state* const fs) {
     return TOKEN_QQ_STRING;
 }
 
-inline U8 scan_single_quote(parse_state* const ps, frame_state* const fs) {
+static inline U8 scan_single_quote(parse_state* const ps, frame_state* const fs) {
     fs_first_escape= 0;
     while (ps_parse_ptr < ps_string_end && *ps_parse_ptr != '\'') {
         /* check if its an escape */
