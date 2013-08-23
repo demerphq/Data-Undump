@@ -48,7 +48,7 @@
 
 #define COND_ISWHITE(ch) ( (ch) == ' ' || (ch) == '\n' || (ch) == '\t' || (ch) == '\r' )
 #define CASE_ISWHITE ' ': case '\n': case '\t': case '\r'
-#define EAT_WHITE(p) STMT_START { while ( COND_ISWHITE(*p) ) { p++; } } STMT_END
+#define EAT_WHITES_AND_COMMENTS(p) STMT_START { while ( COND_ISWHITE(*p) || *p == '#' ) { if (*p == '#') { while ( *p && *p != '\n' ) p++; } else p++; } } STMT_END
 
 const char * const token_name[]= {
     "TOKEN_ERROR",
@@ -172,10 +172,10 @@ SV* undump(pTHX_ SV* sv) {
         return newSV(0);
     }
 
-    EAT_WHITE(ps.parse_ptr);
+    EAT_WHITES_AND_COMMENTS(ps.parse_ptr);
     if (ps.parse_ptr < ps.string_end) {
         undumped= _undump(aTHX_ &ps, 0, 0);
-        EAT_WHITE(ps.parse_ptr);
+        EAT_WHITES_AND_COMMENTS(ps.parse_ptr);
     }
     if (undumped) {
         if (ps.parse_ptr < ps.string_end) {
@@ -433,8 +433,10 @@ SV* _undump(pTHX_ parse_state *ps, char obj_char, U8 call_depth) {
         fs_token= TOKEN_ERROR;
         ch= *(ps_parse_ptr++);
         switch (ch) {
+            case '#':
+                while ( *ps_parse_ptr && *ps_parse_ptr != '\n' ) ps_parse_ptr++;
             case CASE_ISWHITE:
-                EAT_WHITE(ps_parse_ptr);
+                EAT_WHITES_AND_COMMENTS(ps_parse_ptr);
                 goto REPARSE;
             case '=':
                 if ( *ps_parse_ptr != '>' ) {
@@ -603,10 +605,10 @@ SV* _undump(pTHX_ parse_state *ps, char obj_char, U8 call_depth) {
                     if ( ch == 0 ) {
                         char quote;
                         HV *stash;
-                        EAT_WHITE(ps_parse_ptr);
+                        EAT_WHITES_AND_COMMENTS(ps_parse_ptr);
                         if (*ps_parse_ptr == ',') {
                             ps_parse_ptr++;
-                            EAT_WHITE(ps_parse_ptr);
+                            EAT_WHITES_AND_COMMENTS(ps_parse_ptr);
                         } else {
                             ERROR(ps,fs,"expected a comma after object in bless()");
                         }
@@ -641,7 +643,7 @@ SV* _undump(pTHX_ parse_state *ps, char obj_char, U8 call_depth) {
                             PANIC(ps,fs,"Failed to load stash");
                         }
                         ++ps_parse_ptr; /* skip quote */
-                        EAT_WHITE(ps_parse_ptr); /* eat optional whitespace after quote */
+                        EAT_WHITES_AND_COMMENTS(ps_parse_ptr); /* eat optional whitespace after quote */
                         ch= *ps_parse_ptr; /* check we have a close paren */
                         if (ch != ')') {
                             ERRORf1(ps,fs,"expecting a close paren for bless but got a '%c'",ch);

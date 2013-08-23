@@ -18,7 +18,8 @@ foreach my $test (@tests) {
     my $res= undump($dump);
     my $got_error= $@ || "";
     s/^\s+//, s/\s+\z// for $got_error;
-    is( $got_error, $want_error, "code: >>$dump<<");
+    is( $got_error, $want_error, "code: >>$dump<<")
+        or diag("result was " . Dumper($res));
 }
 
 __DATA__
@@ -56,3 +57,8 @@ __DATA__
 
 $VAR1 | Encountered variable in input. This is not eval - can not undump code
 
+[ 1, # ] | unterminated ARRAY constructor
+
+{ 1,#2 } | unterminated HASH constructor
+
+bless( [ ], "Foo", ) | expecting a close paren for bless but got a ','

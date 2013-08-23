@@ -119,3 +119,32 @@ bless(\[],"foo")
 -4123456789
 
 4123456789
+
+[ '#', "#", # foo ]
+"foo\#", "# foo
+" ]
+
+{
+    # some number
+    foo => 42,
+    bar => '42', # same, as a string
+    bop => { # empty hash
+    },
+}
+
+#leading comment
+11
+
+	# leading comment with tab
+	11
+
+22#trailing comment
+
+22 # trailing comment with spaces
+
+bless( { a => 1 } , # data
+    "Foo::Bar" # class name
+    )
+
+bless(#data coming
+[],"Foo")#end
