@@ -11,7 +11,7 @@ our @EXPORT_OK = qw( undump );
 our %EXPORT_TAGS = ( 'all' => \@EXPORT_OK );
 our @EXPORT = qw(undump);
 
-our $VERSION = '0.14';
+our $VERSION = '0.15';
 
 require XSLoader;
 XSLoader::load('Data::Undump', $VERSION);

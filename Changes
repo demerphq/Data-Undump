@@ -1,5 +1,8 @@
 Revision history for Perl extension Data::Undump.
 
+0.15 Wed Aug 28 2013
+    - Add support for perl-style comments in the input
+
 0.14 Sun Aug 12 2012
     - Really fix up issues parsing large numbers
       (apparently I modified the .c file and not the
